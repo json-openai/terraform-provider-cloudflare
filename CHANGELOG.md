@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.6.0 (2025-05-22)
+
+Full Changelog: [v5.5.0...v5.6.0](https://github.com/cloudflare/terraform-provider-cloudflare/compare/v5.5.0...v5.6.0)
+
+### Features
+
+* **api:** api update ([6d7904d](https://github.com/cloudflare/terraform-provider-cloudflare/commit/6d7904d7fb4489c853d1b4484dfadacaba539971))
+* **api:** api update ([b9b9d14](https://github.com/cloudflare/terraform-provider-cloudflare/commit/b9b9d143f212cbe56c84477fc6b0e154889927bb))
+* **api:** api update ([132d68b](https://github.com/cloudflare/terraform-provider-cloudflare/commit/132d68b665e45629c75e1927ecd3d73a04b4ab60))
+* **api:** api update ([b3d0899](https://github.com/cloudflare/terraform-provider-cloudflare/commit/b3d0899d62ad76a8951d4f146c887c0818743869))
+* **api:** api update ([2a22d2d](https://github.com/cloudflare/terraform-provider-cloudflare/commit/2a22d2d71a25b7391ab0a973c092a3bfd08337a6))
+
+
+### Bug Fixes
+
+* **build:** enable building against private Go production repos ([33b58a6](https://github.com/cloudflare/terraform-provider-cloudflare/commit/33b58a668e4419779a30ce19cc181c3f5f38984c))
+* **r2_bucket:** correctly handle optional `location` ([#5615](https://github.com/cloudflare/terraform-provider-cloudflare/issues/5615)) ([bf4e0b9](https://github.com/cloudflare/terraform-provider-cloudflare/commit/bf4e0b9eda97119c196bb0b60c9107ecc2340ff3))
+
+
+### Chores
+
+* **ci:** only run known working resources for acceptance tests ([#5610](https://github.com/cloudflare/terraform-provider-cloudflare/issues/5610)) ([7ed8beb](https://github.com/cloudflare/terraform-provider-cloudflare/commit/7ed8bebf608876698126145f8482b48ac5b7eaf0))
+* **docs:** grammar improvements ([b8eebe0](https://github.com/cloudflare/terraform-provider-cloudflare/commit/b8eebe07b868d2db7ef1b7dd8fb36fc1651e0bcb))
+
 ## 5.5.0 (2025-05-19)
 
 Full Changelog: [v5.4.0...v5.5.0](https://github.com/cloudflare/terraform-provider-cloudflare/compare/v5.4.0...v5.5.0)
