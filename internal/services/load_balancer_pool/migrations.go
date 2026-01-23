@@ -5,11 +5,36 @@ package load_balancer_pool
 import (
 	"context"
 
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/load_balancer_pool/migration/v500"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
 var _ resource.ResourceWithUpgradeState = (*LoadBalancerPoolResource)(nil)
 
+// UpgradeState handles schema version upgrades for cloudflare_load_balancer_pool.
+//
+// Schema version history:
+// - v4 (SDKv2): schema_version=0 (implicit, no explicit version set)
+// - v5: schema_version=0→500 (controlled rollout via GetSchemaVersion)
+//
+// This handles migration from:
+// 1. Legacy v4 SDKv2 provider (schema_version=0) → v5 Plugin Framework (schema_version=500)
+//
+// Key transformations:
+// - load_shedding: Array[0] → NestedObject
+// - origin_steering: Array[0] → NestedObject
+// - origins.header: Complex nested structure transformation
+// - check_regions: Set → List
+// - origins: Set → List
 func (r *LoadBalancerPoolResource) UpgradeState(ctx context.Context) map[int64]resource.StateUpgrader {
-	return map[int64]resource.StateUpgrader{}
+	sourceSchema := v500.SourceCloudflareLoadBalancerPoolSchema()
+
+	return map[int64]resource.StateUpgrader{
+		// Handle upgrades from legacy v4 SDKv2 provider (schema_version=0)
+		// This is the actual state transformation that handles all the SDK v2 → Plugin Framework changes
+		0: {
+			PriorSchema:   &sourceSchema,
+			StateUpgrader: v500.UpgradeFromLegacyV0,
+		},
+	}
 }
