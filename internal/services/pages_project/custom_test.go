@@ -266,9 +266,9 @@ func TestEnvVarsMatchIgnoringSecrets(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:   "source nil, dest empty",
-			source: nil,
-			dest:   &map[string]PagesProjectDeploymentConfigsPreviewEnvVarsModel{},
+			name:     "source nil, dest empty",
+			source:   nil,
+			dest:     &map[string]PagesProjectDeploymentConfigsPreviewEnvVarsModel{},
 			expected: true,
 		},
 		{
@@ -402,7 +402,7 @@ func TestCompatibilityFlagsEqual(t *testing.T) {
 }
 
 // TestNormalizeBuildConfig_EmptyStrings tests that build_config with empty strings
-// is normalized to nil. This is the fix for the issue where the API returns empty
+// is normalized to null. This is the fix for the issue where the API returns empty
 // strings for build_config fields (like build_command = ""), and the provider would
 // incorrectly preserve these in the plan, causing "planned value for a non-computed
 // attribute" errors.
@@ -414,14 +414,14 @@ func TestNormalizeBuildConfig_EmptyStrings(t *testing.T) {
 		Name:             types.StringValue("test-project"),
 		AccountID:        types.StringValue("abc123"),
 		ProductionBranch: types.StringValue("main"),
-		BuildConfig: &PagesProjectBuildConfigModel{
-			BuildCaching:      types.BoolNull(),         // null bool
-			BuildCommand:      types.StringValue(""),    // empty string
-			DestinationDir:    types.StringValue(""),    // empty string
-			RootDir:           types.StringValue(""),    // empty string
-			WebAnalyticsTag:   types.StringValue(""),    // empty string
-			WebAnalyticsToken: types.StringValue(""),    // empty string
-		},
+		BuildConfig: customfield.NewObjectMust(ctx, &PagesProjectBuildConfigModel{
+			BuildCaching:      types.BoolNull(),      // null bool
+			BuildCommand:      types.StringValue(""), // empty string
+			DestinationDir:    types.StringValue(""), // empty string
+			RootDir:           types.StringValue(""), // empty string
+			WebAnalyticsTag:   types.StringValue(""), // empty string
+			WebAnalyticsToken: types.StringValue(""), // empty string
+		}),
 	}
 
 	// Call NormalizeDeploymentConfigs
@@ -431,14 +431,14 @@ func TestNormalizeBuildConfig_EmptyStrings(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", diags)
 	}
 
-	// build_config should be normalized to nil when all fields are empty/null
-	if result.BuildConfig != nil {
-		t.Errorf("expected build_config to be nil when all fields are empty/null, got %+v", result.BuildConfig)
+	// build_config should be normalized to null when all fields are empty/null
+	if !result.BuildConfig.IsNull() {
+		t.Errorf("expected build_config to be null when all fields are empty/null, got %+v", result.BuildConfig)
 	}
 }
 
 // TestNormalizeBuildConfig_WithActualValues tests that build_config with actual
-// values is NOT normalized to nil.
+// values is NOT normalized to null.
 func TestNormalizeBuildConfig_WithActualValues(t *testing.T) {
 	ctx := context.Background()
 
@@ -447,14 +447,14 @@ func TestNormalizeBuildConfig_WithActualValues(t *testing.T) {
 		Name:             types.StringValue("test-project"),
 		AccountID:        types.StringValue("abc123"),
 		ProductionBranch: types.StringValue("main"),
-		BuildConfig: &PagesProjectBuildConfigModel{
+		BuildConfig: customfield.NewObjectMust(ctx, &PagesProjectBuildConfigModel{
 			BuildCaching:      types.BoolValue(true),
 			BuildCommand:      types.StringValue("npm run build"),
 			DestinationDir:    types.StringValue("dist"),
 			RootDir:           types.StringValue("/"),
-			WebAnalyticsTag:   types.StringValue(""),  // empty is ok if others have values
-			WebAnalyticsToken: types.StringValue(""),  // empty is ok if others have values
-		},
+			WebAnalyticsTag:   types.StringValue(""), // empty is ok if others have values
+			WebAnalyticsToken: types.StringValue(""), // empty is ok if others have values
+		}),
 	}
 
 	// Call NormalizeDeploymentConfigs
@@ -464,8 +464,8 @@ func TestNormalizeBuildConfig_WithActualValues(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", diags)
 	}
 
-	// build_config should NOT be nil when fields have actual values
-	if result.BuildConfig == nil {
+	// build_config should NOT be null when fields have actual values
+	if result.BuildConfig.IsNull() {
 		t.Error("expected build_config to be preserved when fields have actual values")
 	}
 }
@@ -475,12 +475,12 @@ func TestNormalizeBuildConfig_WithActualValues(t *testing.T) {
 func TestMergeBuildConfigFromState(t *testing.T) {
 	// Plan has some values but not all
 	plan := &PagesProjectBuildConfigModel{
-		BuildCaching:      types.BoolNull(),           // not specified by user
+		BuildCaching:      types.BoolNull(),                // not specified by user
 		BuildCommand:      types.StringValue("yarn build"), // user specified
-		DestinationDir:    types.StringUnknown(),      // unknown
-		RootDir:           types.StringValue("/app"),  // user specified
-		WebAnalyticsTag:   types.StringNull(),         // not specified
-		WebAnalyticsToken: types.StringNull(),         // not specified
+		DestinationDir:    types.StringUnknown(),           // unknown
+		RootDir:           types.StringValue("/app"),       // user specified
+		WebAnalyticsTag:   types.StringNull(),              // not specified
+		WebAnalyticsToken: types.StringNull(),              // not specified
 	}
 
 	// State has values from a previous apply/import
@@ -526,4 +526,3 @@ func TestMergeBuildConfigFromState_NilInputs(t *testing.T) {
 	mergeBuildConfigFromState(nil, &PagesProjectBuildConfigModel{})
 	mergeBuildConfigFromState(&PagesProjectBuildConfigModel{}, nil)
 }
-

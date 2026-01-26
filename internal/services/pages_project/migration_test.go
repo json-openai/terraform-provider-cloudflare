@@ -1,16 +1,20 @@
 package pages_project_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/acctest"
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/pages_project"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/utils"
 )
 
@@ -523,6 +527,7 @@ resource "cloudflare_pages_project" "%[1]s" {
 		},
 	})
 }
+
 // TestMigratePagesProject_V4ToV5_WithBuildConfigComplete tests all build_config attributes
 func TestMigratePagesProject_V4ToV5_WithBuildConfigComplete(t *testing.T) {
 	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
@@ -1008,5 +1013,177 @@ resource "cloudflare_pages_project" "%[1]s" {
 				statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("deployment_configs").AtMapKey("production").AtMapKey("always_use_latest_compatibility_date"), knownvalue.Bool(false)),
 			}),
 		},
+	})
+}
+
+// =============================================================================
+// Unit Tests for State Upgrader Logic
+// =============================================================================
+
+func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
+	// Test mergeEnvVarsAndSecretsPreview
+	t.Run("merge_env_vars_and_secrets_preview", func(t *testing.T) {
+		ctx := context.Background()
+
+		envVars, _ := types.MapValue(types.StringType, map[string]attr.Value{
+			"NODE_ENV": types.StringValue("production"),
+			"API_URL":  types.StringValue("https://api.example.com"),
+		})
+
+		secrets, _ := types.MapValue(types.StringType, map[string]attr.Value{
+			"API_KEY":     types.StringValue("secret123"),
+			"DB_PASSWORD": types.StringValue("dbpass456"),
+		})
+
+		result := pages_project.MergeEnvVarsAndSecretsPreviewExported(ctx, envVars, secrets)
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+
+		// Verify environment variables are converted to plain_text
+		if nodeEnv, ok := (*result)["NODE_ENV"]; !ok {
+			t.Error("expected NODE_ENV in result")
+		} else {
+			if nodeEnv.Type.ValueString() != "plain_text" {
+				t.Errorf("expected NODE_ENV type to be plain_text, got %s", nodeEnv.Type.ValueString())
+			}
+			if nodeEnv.Value.ValueString() != "production" {
+				t.Errorf("expected NODE_ENV value to be production, got %s", nodeEnv.Value.ValueString())
+			}
+		}
+
+		// Verify secrets are converted to secret_text
+		if apiKey, ok := (*result)["API_KEY"]; !ok {
+			t.Error("expected API_KEY in result")
+		} else {
+			if apiKey.Type.ValueString() != "secret_text" {
+				t.Errorf("expected API_KEY type to be secret_text, got %s", apiKey.Type.ValueString())
+			}
+		}
+	})
+
+	// Test convertKVNamespacesV0ToV5Preview
+	t.Run("convert_kv_namespaces_preview", func(t *testing.T) {
+		ctx := context.Background()
+
+		kvNamespaces, _ := types.MapValue(types.StringType, map[string]attr.Value{
+			"MY_KV":      types.StringValue("kv-namespace-id-123"),
+			"ANOTHER_KV": types.StringValue("kv-namespace-id-456"),
+		})
+
+		result := pages_project.ConvertKVNamespacesV0ToV5PreviewExported(ctx, kvNamespaces)
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+
+		if myKV, ok := (*result)["MY_KV"]; !ok {
+			t.Error("expected MY_KV in result")
+		} else {
+			if myKV.NamespaceID.ValueString() != "kv-namespace-id-123" {
+				t.Errorf("expected namespace_id to be kv-namespace-id-123, got %s", myKV.NamespaceID.ValueString())
+			}
+		}
+	})
+
+	// Test convertD1DatabasesV0ToV5Preview
+	t.Run("convert_d1_databases_preview", func(t *testing.T) {
+		ctx := context.Background()
+
+		d1Databases, _ := types.MapValue(types.StringType, map[string]attr.Value{
+			"MY_DB": types.StringValue("d1-database-id-123"),
+		})
+
+		result := pages_project.ConvertD1DatabasesV0ToV5PreviewExported(ctx, d1Databases)
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+
+		if myDB, ok := (*result)["MY_DB"]; !ok {
+			t.Error("expected MY_DB in result")
+		} else {
+			if myDB.ID.ValueString() != "d1-database-id-123" {
+				t.Errorf("expected id to be d1-database-id-123, got %s", myDB.ID.ValueString())
+			}
+		}
+	})
+
+	// Test convertR2BucketsV0ToV5Preview
+	t.Run("convert_r2_buckets_preview", func(t *testing.T) {
+		ctx := context.Background()
+
+		r2Buckets, _ := types.MapValue(types.StringType, map[string]attr.Value{
+			"MY_BUCKET": types.StringValue("my-bucket-name"),
+		})
+
+		result := pages_project.ConvertR2BucketsV0ToV5PreviewExported(ctx, r2Buckets)
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+
+		if myBucket, ok := (*result)["MY_BUCKET"]; !ok {
+			t.Error("expected MY_BUCKET in result")
+		} else {
+			if myBucket.Name.ValueString() != "my-bucket-name" {
+				t.Errorf("expected name to be my-bucket-name, got %s", myBucket.Name.ValueString())
+			}
+		}
+	})
+
+	// Test convertDurableObjectNamespacesV0ToV5Preview
+	t.Run("convert_durable_object_namespaces_preview", func(t *testing.T) {
+		ctx := context.Background()
+
+		doNamespaces, _ := types.MapValue(types.StringType, map[string]attr.Value{
+			"MY_DO": types.StringValue("do-namespace-id-123"),
+		})
+
+		result := pages_project.ConvertDurableObjectNamespacesV0ToV5PreviewExported(ctx, doNamespaces)
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+
+		if myDO, ok := (*result)["MY_DO"]; !ok {
+			t.Error("expected MY_DO in result")
+		} else {
+			if myDO.NamespaceID.ValueString() != "do-namespace-id-123" {
+				t.Errorf("expected namespace_id to be do-namespace-id-123, got %s", myDO.NamespaceID.ValueString())
+			}
+		}
+	})
+
+	// Test null/unknown map handling
+	t.Run("null_map_returns_nil", func(t *testing.T) {
+		ctx := context.Background()
+		nullMap := types.MapNull(types.StringType)
+
+		if result := pages_project.ConvertKVNamespacesV0ToV5PreviewExported(ctx, nullMap); result != nil {
+			t.Error("expected nil for null map")
+		}
+
+		if result := pages_project.ConvertD1DatabasesV0ToV5PreviewExported(ctx, nullMap); result != nil {
+			t.Error("expected nil for null map")
+		}
+
+		if result := pages_project.ConvertR2BucketsV0ToV5PreviewExported(ctx, nullMap); result != nil {
+			t.Error("expected nil for null map")
+		}
+
+		if result := pages_project.ConvertDurableObjectNamespacesV0ToV5PreviewExported(ctx, nullMap); result != nil {
+			t.Error("expected nil for null map")
+		}
+	})
+
+	// Test empty map handling
+	t.Run("empty_map_returns_nil", func(t *testing.T) {
+		ctx := context.Background()
+		emptyMap, _ := types.MapValue(types.StringType, map[string]attr.Value{})
+
+		if result := pages_project.ConvertKVNamespacesV0ToV5PreviewExported(ctx, emptyMap); result != nil {
+			t.Error("expected nil for empty map")
+		}
+
+		if result := pages_project.MergeEnvVarsAndSecretsPreviewExported(ctx, emptyMap, emptyMap); result != nil {
+			t.Error("expected nil when both env vars and secrets are empty")
+		}
 	})
 }

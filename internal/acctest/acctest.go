@@ -926,6 +926,9 @@ func RunMigrationV2Command(t *testing.T, v4Config string, tmpDir string, sourceV
 		t.Fatalf("tf-migrate binary not found at %s. Please set TF_MIGRATE_BINARY_PATH or ensure the binary is built.", migratorPath)
 	}
 
+	// TODO:: Skipping tf-migrate to test native state upgraders
+	// The native Terraform state upgraders handle the v4 -> v5 state migration.
+	// Commenting out the external migration tool to allow testing of the native upgraders.
 	// Find state file in tmpDir
 	// First check if state file exists directly in tmpDir (from v4 import)
 	var stateFilePath string
@@ -1325,6 +1328,3 @@ func MigrationV2TestStepAllowCreate(t *testing.T, v4Config string, tmpDir string
 		},
 	}
 }
-
-// ImportResourceWithV4Provider imports a resource using the v4 provider before migration testing.
-// This is used for import-only resources that cannot be created via Terraform.

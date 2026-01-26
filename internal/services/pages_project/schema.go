@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -47,10 +46,12 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 				Description: "Production branch of the project. Used to identify production deployments.",
 				Required:    true,
 			},
-		"build_config": schema.SingleNestedAttribute{
-			Description: "Configs for the project build process.",
-			Optional:    true,
-			Attributes: map[string]schema.Attribute{
+			"build_config": schema.SingleNestedAttribute{
+				Description: "Configs for the project build process.",
+				Computed:    true,
+				Optional:    true,
+				CustomType:  customfield.NewNestedObjectType[PagesProjectBuildConfigModel](ctx),
+				Attributes: map[string]schema.Attribute{
 					"build_caching": schema.BoolAttribute{
 						Description: "Enable build caching for the project.",
 						Computed:    true,
@@ -398,6 +399,7 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 										},
 										"environment": schema.StringAttribute{
 											Description: "The Service environment.",
+											Computed:    true,
 											Optional:    true,
 										},
 									},
@@ -408,6 +410,9 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 								Computed:           true,
 								Optional:           true,
 								DeprecationMessage: "All new projects now use the Standard usage model.",
+								PlanModifiers: []planmodifier.String{
+									stringplanmodifier.UseStateForUnknown(),
+								},
 								Validators: []validator.String{
 									stringvalidator.OneOfCaseInsensitive(
 										"standard",
@@ -415,7 +420,6 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 										"unbound",
 									),
 								},
-								Default: stringdefault.StaticString("standard"),
 							},
 							"vectorize_bindings": schema.MapNestedAttribute{
 								Description: "Vectorize bindings used for Pages Functions.",
@@ -643,6 +647,7 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 										},
 										"environment": schema.StringAttribute{
 											Description: "The Service environment.",
+											Computed:    true,
 											Optional:    true,
 										},
 									},
@@ -653,6 +658,9 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 								Computed:           true,
 								Optional:           true,
 								DeprecationMessage: "All new projects now use the Standard usage model.",
+								PlanModifiers: []planmodifier.String{
+									stringplanmodifier.UseStateForUnknown(),
+								},
 								Validators: []validator.String{
 									stringvalidator.OneOfCaseInsensitive(
 										"standard",
@@ -660,7 +668,6 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 										"unbound",
 									),
 								},
-								Default: stringdefault.StaticString("standard"),
 							},
 							"vectorize_bindings": schema.MapNestedAttribute{
 								Description: "Vectorize bindings used for Pages Functions.",
