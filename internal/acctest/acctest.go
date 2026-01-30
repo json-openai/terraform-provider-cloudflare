@@ -1129,6 +1129,15 @@ func MigrationV2TestStepWithPlan(t *testing.T, v4Config string, tmpDir string, e
 	return []resource.TestStep{migrationStep, planStep, validationStep}
 }
 
+// InferMigrationVersions determines source and target versions from test provider version.
+// Returns ("v4", "v5") for v4.x versions, ("v5", "v5") for v5.x versions.
+func InferMigrationVersions(testVersion string) (source, target string) {
+	if strings.HasPrefix(testVersion, "5.") {
+		return "v5", "v5"
+	}
+	return "v4", "v5"
+}
+
 // MigrationTestStep creates a test step that runs the migration command and validates with v5 provider
 func MigrationTestStep(t *testing.T, v4Config string, tmpDir string, exactVersion string, stateChecks []statecheck.StateCheck) resource.TestStep {
 	// Choose the appropriate plan check based on the version

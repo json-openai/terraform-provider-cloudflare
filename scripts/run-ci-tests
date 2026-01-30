@@ -3,11 +3,21 @@
 # Generic parallel CI test runner
 # Supports both acceptance tests and migration tests
 # Dynamically detects which services have sweeper implementations by grepping for AddTestSweepers
+#
+# Migration Tests:
+#   When TEST_TYPE=migration, the script will:
+#   1. Check for a migration/ subdirectory in each service
+#   2. Run tests matching ^TestMigrate pattern
+#   3. Set TF_MIGRATE_BINARY_PATH environment variable
+#   4. Adjust test path from ./internal/services/SERVICE/... to ./internal/services/SERVICE/migration/...
+#
+# Environment Variables:
+#   TF_MIGRATE_BINARY_PATH: Path to tf-migrate binary (required for migration tests)
+#   TF_MIG_TEST: Enable migration test mode (required for migration tests, set to "1" or "true")
 
 # ./internal/services/account
 # account creation can only be done by a tenant admin and the current CI does 
 # have that support.
-# TODO: support tenant admin auth for acceptance tests
 
 # Product group definitions - services that need special handling
 # Using functions instead of associative arrays for broader bash compatibility
@@ -221,7 +231,7 @@ declare -a ALL_SERVICES=(
     "resource=./internal/services/spectrum_application"
     "resource=./internal/services/sso_connector"
     "resource=./internal/services/tiered_cache"
-    # "resource=./internal/services/token_validation_config"
+    "resource=./internal/services/token_validation_config"
     "resource=./internal/services/token_validation_rules"
     "resource=./internal/services/turnstile_widget"
     "resource=./internal/services/url_normalization_settings"
@@ -235,7 +245,7 @@ declare -a ALL_SERVICES=(
     "resource=./internal/services/workers_kv_namespace"
     "resource=./internal/services/workers_route"
     "resource=./internal/services/workers_script"
-#    "resource=./internal/services/workflow" 
+    "resource=./internal/services/workflow"
     "resource=./internal/services/zero_trust_access_application"
     "resource=./internal/services/zero_trust_access_custom_page"
     "resource=./internal/services/zero_trust_access_group"
@@ -576,35 +586,54 @@ run_tests() {
     local log_file="$LOG_DIR/$(basename "$service")-tests.log"
     local start_time=$(date +%s)
     local test_pattern test_name
-    
+    local test_path="$service"
+
     # Set test pattern and name based on test type
     if [ "$TEST_TYPE" = "migration" ]; then
         test_pattern="^TestMigrate"
         test_name="migration tests"
-        
-        # Check if this service has migration tests
-        if ! has_migration_tests "$service"; then
-            log "${YELLOW}Skipping $test_name for $service (no migration tests found)${NC}" > "$log_file"
-            log "Skipping $test_name for $service (no migration tests found)"
+
+        # For migration tests, adjust path to include /migration/...
+        # Example: ./internal/services/dns_record/... -> ./internal/services/dns_record/migration/...
+        test_path="${service%/...}/migration/..."
+
+        # Check if this service has migration tests by checking if migration directory exists
+        local migration_dir="${service%/...}/migration"
+        if [ ! -d "$migration_dir" ]; then
+            log "${YELLOW}Skipping $test_name for $service (no migration directory found)${NC}" > "$log_file"
+            log "Skipping $test_name for $service (no migration directory found)"
+            echo "TESTS_SKIPPED" >> "$log_file"  # Marker for process_service to detect skip
             return 0
         fi
     else
         test_pattern="^TestAcc"
         test_name="acceptance tests"
     fi
-    
-    log "${WHITE}Running $test_name: $service${NC}" > "$log_file"
-    log "Running $test_name: $service"
-    
-    # Build command with optional parallel flag
-    local test_cmd="TF_ACC=1 go test -run \"$test_pattern\" -count 1 -timeout \"$TEST_TIMEOUT\""
-    
+
+    log "${WHITE}Running $test_name: $test_path${NC}" > "$log_file"
+    log "Running $test_name: $test_path"
+
+    # Validate required environment variables for migration tests
+    if [ "$TEST_TYPE" = "migration" ]; then
+        if [ -z "$TF_MIGRATE_BINARY_PATH" ]; then
+            log "${RED}ERROR: TF_MIGRATE_BINARY_PATH environment variable must be set for migration tests${NC}"
+            return 1
+        fi
+        if [ -z "$TF_MIG_TEST" ]; then
+            log "${RED}ERROR: TF_MIG_TEST environment variable must be set for migration tests${NC}"
+            return 1
+        fi
+    fi
+
+    # Build test command (all environment variables are inherited from parent process)
+    local test_cmd="go test -v -run \"$test_pattern\" -count 1 -timeout \"$TEST_TIMEOUT\""
+
     # Add parallel flag if specified and not 0
     if [ "$parallel_count" -gt 0 ]; then
         test_cmd="$test_cmd -parallel $parallel_count"
     fi
-    
-    test_cmd="$test_cmd \"$service\""
+
+    test_cmd="$test_cmd \"$test_path\""
     
     # Retry logic for test failures
     local max_retries=3
@@ -688,12 +717,20 @@ process_service() {
         # Run tests
         run_tests "$service" "$parallel_count"
         local test_result=$?
-        
+
         local end_time=$(date +%s)
         local total_duration=$((end_time - start_time))
-        
+
+        # Check if tests were skipped by looking for the skip marker
+        local service_name=$(basename "$service")
+        local tests_log="$LOG_DIR/${service_name}-tests.log"
+
         if [ $test_result -eq 0 ]; then
-            log "${GREEN}✓ Completed: $service (${total_duration}s total)${NC}"
+            if [ -f "$tests_log" ] && grep -q "TESTS_SKIPPED" "$tests_log" 2>/dev/null; then
+                log "${YELLOW}⏭ Skipped: $service (${total_duration}s total)${NC}"
+            else
+                log "${GREEN}✓ Completed: $service (${total_duration}s total)${NC}"
+            fi
         else
             log "${RED}✗ Failed: $service (${total_duration}s total)${NC}"
         fi
@@ -752,7 +789,7 @@ main() {
     (
         export JOB_ID="PROG"
         while sleep 30; do
-            completed=$(find "$LOG_DIR" -name "*-combined.log" -exec grep -l "✓ Completed:\|✗ Failed:" {} \; 2>/dev/null | wc -l | tr -d ' ')
+            completed=$(find "$LOG_DIR" -name "*-combined.log" -exec grep -l "✓ Completed:\|⏭ Skipped:\|✗ Failed:" {} \; 2>/dev/null | wc -l | tr -d ' ')
             total=${#SERVICES[@]}
             log "${WHITE}Progress: $completed/$total services completed${NC}"
         done
@@ -1070,23 +1107,27 @@ main() {
     
     # Count results
     local passed=0
+    local skipped=0
     local failed=0
     local failed_list=""
-    
+
     debug_log "${WHITE}DEBUG: Starting result counting for ${#ordered_services[@]} services${NC}"
-    
+
     # Temporarily disable exit on error during counting
     set +e
-    
+
     for service_config in "${ordered_services[@]}"; do
         local service=$(parse_service_config "$service_config" "resource")
         local service_name=$(basename "$service")
         local combined_log="$LOG_DIR/${service_name}-combined.log"
-        
+
         debug_log "${WHITE}DEBUG: Checking results for $service_name${NC}"
-        
+
         if [ -f "$combined_log" ]; then
-            if grep -q "✓ Completed:" "$combined_log" 2>/dev/null; then
+            if grep -q "⏭ Skipped:" "$combined_log" 2>/dev/null; then
+                skipped=$((skipped + 1))
+                debug_log "${WHITE}DEBUG: $service_name marked as SKIPPED${NC}"
+            elif grep -q "✓ Completed:" "$combined_log" 2>/dev/null; then
                 passed=$((passed + 1))
                 debug_log "${WHITE}DEBUG: $service_name marked as PASSED${NC}"
             else
@@ -1100,8 +1141,8 @@ main() {
             debug_log "${WHITE}DEBUG: $service_name marked as FAILED (no log file)${NC}"
         fi
     done
-    
-    debug_log "${WHITE}DEBUG: Result counting complete - passed=$passed, failed=$failed${NC}"
+
+    debug_log "${WHITE}DEBUG: Result counting complete - passed=$passed, skipped=$skipped, failed=$failed${NC}"
     
     # Re-enable exit on error
     set -e
@@ -1127,8 +1168,9 @@ main() {
         log "=== EXECUTION SUMMARY ==="
         log "Total execution time: ${minutes}m ${seconds}s"
         log "Passed: $passed"
+        log "Skipped: $skipped"
         log "Failed: $failed"
-        
+
         if [ $failed -gt 0 ]; then
             echo ""
             log "Failed services:"
@@ -1138,7 +1180,7 @@ main() {
             echo ""
             log "Check individual log files in $LOG_DIR for detailed error information"
         fi
-        
+
         log "Summary complete"
     } | cat  # Using cat to force immediate output as a single block
     
@@ -1207,7 +1249,9 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "  --debug            Enable debug logging (default: disabled)"
     echo ""
     echo "Environment variables:"
-    echo "  PARALLEL_JOBS      Override default parallel job count"
+    echo "  PARALLEL_JOBS           Override default parallel job count"
+    echo "  TF_MIGRATE_BINARY_PATH  Path to tf-migrate binary (required for migration tests)"
+    echo "  TF_MIG_TEST             Enable migration test mode (required for migration tests)"
     echo ""
     echo "Product Groups:"
     for group in $(get_available_product_groups); do
@@ -1235,22 +1279,16 @@ fi
 # Initialize defaults
 PRODUCT_GROUP="default"
 TEST_TYPE="acceptance"
-LEGACY_SYNTAX=false
 
 # Parse product group and test type
 if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
     # Check if first argument is a product group
     available_groups="$(get_available_product_groups)"
-    if [[ "$1" == "migration" ]] || [[ "$1" == "acceptance" ]]; then
-        # Legacy syntax: just test type specified
-        TEST_TYPE="$1"
-        LEGACY_SYNTAX=true
-        shift
-    elif [[ "$1" == "default" ]] || [[ " $available_groups " =~ " $1 " ]]; then
-        # New syntax: product group specified
+    if [[ "$1" == "default" ]] || [[ " $available_groups " =~ " $1 " ]]; then
+        # Product group specified
         PRODUCT_GROUP="$1"
         shift
-        
+
         # Check for test type as second argument
         if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
             case $1 in
@@ -1282,15 +1320,10 @@ fi
 while [[ $# -gt 0 ]]; do
     case $1 in
         --dry-run)
-            # Filter services first for dry run using same logic as main execution
-            if [ "$TEST_TYPE" = "migration" ] && [ "$LEGACY_SYNTAX" = "true" ]; then
-                dry_services=("${ALL_SERVICES[@]}")
-                echo "Would run ${#dry_services[@]} services with $PARALLEL_JOBS parallel jobs (all services, migration tests)"
-            else
-                filter_services_by_group "$PRODUCT_GROUP"
-                dry_services=("${SERVICES[@]}")
-                echo "Would run ${#dry_services[@]} services with $PARALLEL_JOBS parallel jobs ($PRODUCT_GROUP group, $TEST_TYPE tests)"
-            fi
+            # Filter services by product group for dry run
+            filter_services_by_group "$PRODUCT_GROUP"
+            dry_services=("${SERVICES[@]}")
+            echo "Would run ${#dry_services[@]} services with $PARALLEL_JOBS parallel jobs ($PRODUCT_GROUP group, $TEST_TYPE tests)"
             for service_config in "${dry_services[@]}"; do
                 service=$(parse_service_config "$service_config" "resource")
                 parallel_count=$(parse_service_config "$service_config" "parallel")
@@ -1329,14 +1362,7 @@ if ! [[ "$PARALLEL_JOBS" =~ ^[0-9]+$ ]] || [ "$PARALLEL_JOBS" -lt 1 ]; then
 fi
 
 # Filter services by product group
-# Special case: legacy "migration" syntax should use all services for backward compatibility
-if [ "$TEST_TYPE" = "migration" ] && [ "$LEGACY_SYNTAX" = "true" ]; then
-    # Legacy syntax: "./scripts/run-ci-tests migration" should run all services
-    SERVICES=("${ALL_SERVICES[@]}")
-else
-    # Normal product group filtering (including explicit "default migration")
-    filter_services_by_group "$PRODUCT_GROUP"
-fi
+filter_services_by_group "$PRODUCT_GROUP"
 
 # Run main function
 main
