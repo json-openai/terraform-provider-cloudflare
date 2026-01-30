@@ -13,6 +13,7 @@ import (
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/acctest"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/consts"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/utils"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
@@ -23,6 +24,67 @@ import (
 
 func TestMain(m *testing.M) {
 	resource.TestMain(m)
+}
+
+func init() {
+	resource.AddTestSweepers("cloudflare_leaked_credential_check_rule", &resource.Sweeper{
+		Name: "cloudflare_leaked_credential_check_rule",
+		F:    testSweepCloudflareLeakedCredentialCheckRule,
+	})
+}
+
+func testSweepCloudflareLeakedCredentialCheckRule(r string) error {
+	ctx := context.Background()
+	client := acctest.SharedClient()
+
+	zoneID := os.Getenv("CLOUDFLARE_ZONE_ID")
+	if zoneID == "" {
+		tflog.Info(ctx, "Skipping leaked credential check rule sweep: CLOUDFLARE_ZONE_ID not set")
+		return nil
+	}
+
+	tflog.Info(ctx, fmt.Sprintf("Sweeping leaked credential check rules for zone: %s", zoneID))
+
+	// List all leaked credential check rules in the zone
+	page, err := client.LeakedCredentialChecks.Detections.List(
+		ctx,
+		leaked_credential_checks.DetectionListParams{
+			ZoneID: cloudflare.F(zoneID),
+		},
+	)
+	if err != nil {
+		tflog.Error(ctx, fmt.Sprintf("Failed to list leaked credential check rules: %s", err))
+		return fmt.Errorf("failed to list leaked credential check rules: %w", err)
+	}
+
+	if page == nil || len(page.Result) == 0 {
+		tflog.Info(ctx, "No leaked credential check rules to sweep")
+		return nil
+	}
+
+	// Delete each rule
+	// Note: There's no naming convention for these rules since they don't have a "name" field.
+	// We'll sweep all rules in the test zone, as test zones should be dedicated to testing.
+	for _, rule := range page.Result {
+		tflog.Info(ctx, fmt.Sprintf("Deleting leaked credential check rule: %s (zone: %s)", rule.ID, zoneID))
+
+		_, err := client.LeakedCredentialChecks.Detections.Delete(
+			ctx,
+			rule.ID,
+			leaked_credential_checks.DetectionDeleteParams{
+				ZoneID: cloudflare.F(zoneID),
+			},
+		)
+		if err != nil {
+			tflog.Error(ctx, fmt.Sprintf("Failed to delete leaked credential check rule %s: %s", rule.ID, err))
+			// Continue with other rules even if one fails
+			continue
+		}
+
+		tflog.Info(ctx, fmt.Sprintf("Deleted leaked credential check rule: %s", rule.ID))
+	}
+
+	return nil
 }
 
 func testAccCheckCloudflareLeakedCredentialCheckRuleDestroy(s *terraform.State) error {
