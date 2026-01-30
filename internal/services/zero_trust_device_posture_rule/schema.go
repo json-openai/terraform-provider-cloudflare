@@ -19,6 +19,7 @@ var _ resource.ResourceWithConfigValidators = (*ZeroTrustDevicePostureRuleResour
 
 func ResourceSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
+		Version: 1,
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description:   "API UUID.",

@@ -1,6 +1,6 @@
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 
-package filter
+package zero_trust_dlp_custom_profile
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
-var _ resource.ResourceWithUpgradeState = (*FilterResource)(nil)
+var _ resource.ResourceWithUpgradeState = (*ZeroTrustDLPCustomProfileResource)(nil)
 
-func (r *FilterResource) UpgradeState(ctx context.Context) map[int64]resource.StateUpgrader {
+func (r *ZeroTrustDLPCustomProfileResource) UpgradeState(ctx context.Context) map[int64]resource.StateUpgrader {
 	return map[int64]resource.StateUpgrader{
 		0: {
 			StateUpgrader: func(ctx context.Context, req resource.UpgradeStateRequest, resp *resource.UpgradeStateResponse) {
