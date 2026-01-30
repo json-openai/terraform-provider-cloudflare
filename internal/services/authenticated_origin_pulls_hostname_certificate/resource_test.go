@@ -101,10 +101,17 @@ EOT
 // TestAccAuthenticatedOriginPullsHostnameCertificate_FullLifecycle tests the full lifecycle
 // of an authenticated origin pulls hostname certificate including create, read, and import.
 // Note: This resource does not support in-place updates - all input fields have RequiresReplace.
+<<<<<<< HEAD
 // Note: ExpectNonEmptyPlan is required because the certificate field returned from the API has
 // different formatting (whitespace/newlines) than what was sent. Combined with RequiresReplace,
 // this causes Terraform to plan a replacement on every refresh. This is a known issue that should
 // be addressed in cloudflare-config by adding a plan modifier to normalize certificate fields.
+=======
+// Certificate normalization is handled via RequiresReplaceIfNotCertificateSemantic plan
+// modifier, which ensures that certificates with different whitespace/newline formatting are
+// treated as semantically equal and don't trigger replacements.
+// This test covers certificate received with trailing new line (ideal state).
+>>>>>>> a5ad5285f (fix: authenticated_origin_pulls_hostname_certificate resource and tests)
 func TestAccAuthenticatedOriginPullsHostnameCertificate_FullLifecycle(t *testing.T) {
 	rnd := utils.GenerateRandomResourceName()
 	resourceName := "cloudflare_authenticated_origin_pulls_hostname_certificate." + rnd
@@ -138,11 +145,14 @@ func TestAccAuthenticatedOriginPullsHostnameCertificate_FullLifecycle(t *testing
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("serial_number"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("signature"), knownvalue.NotNull()),
 				},
+<<<<<<< HEAD
 				// KNOWN ISSUE: The certificate field returned from the API has different formatting
 				// than what was sent, causing RequiresReplace drift on every refresh.
 				// This triggers an attempted replacement that fails with "certificate already exists".
 				// Should be fixed in cloudflare-config with a certificate normalization plan modifier.
 				ExpectNonEmptyPlan: true,
+=======
+>>>>>>> a5ad5285f (fix: authenticated_origin_pulls_hostname_certificate resource and tests)
 			},
 			// Step 2: Import
 			{
@@ -152,6 +162,76 @@ func TestAccAuthenticatedOriginPullsHostnameCertificate_FullLifecycle(t *testing
 				ImportStateVerifyIgnore: []string{"private_key", "certificate", "status"},
 				ImportStateIdFunc:       testAccAuthenticatedOriginPullsHostnameCertificateImportStateIdFunc(resourceName),
 			},
+<<<<<<< HEAD
 		},
 	})
 }
+=======
+			{
+				Config: testAccAuthenticatedOriginPullsHostnameCertificateConfig(rnd, zoneID, cert, key),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New(consts.ZoneIDSchemaKey), knownvalue.StringExact(zoneID)),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("id"), knownvalue.NotNull()),
+				},
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccAuthenticatedOriginPullsHostnameCertificate_CertificateNewlineNormalization tests that
+// the provider properly handles certificates without trailing newlines and doesn't
+// detect drift. This verifies the normalization logic for certificates field.
+func TestAccAuthenticatedOriginPullsHostnameCertificate_CertificateNewlineNormalization(t *testing.T) {
+	t.Parallel()
+	rnd := utils.GenerateRandomResourceName()
+	resourceName := "cloudflare_authenticated_origin_pulls_hostname_certificate." + rnd
+	zoneID := os.Getenv("CLOUDFLARE_ZONE_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.TestAccPreCheck_ZoneID(t)
+			acctest.TestAccPreCheck_Credentials(t)
+		},
+		ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckCloudflareAuthenticatedOriginPullsHostnameCertificateDestroy,
+		Steps: []resource.TestStep{
+			{
+				// Create with config normalized (no trailing newlines)
+				Config: testAccCheckCloudflareAuthenticatedOriginPullsHostnameCertificateConfigNormalized(zoneID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New(consts.ZoneIDSchemaKey), knownvalue.StringExact(zoneID)),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("status"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("issuer"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("expires_on"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("uploaded_on"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("serial_number"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("signature"), knownvalue.NotNull()),
+				},
+			},
+			{
+				// Refresh with config normalized - should not detect drift
+				Config: testAccCheckCloudflareAuthenticatedOriginPullsHostnameCertificateConfigNormalized(zoneID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New(consts.ZoneIDSchemaKey), knownvalue.StringExact(zoneID)),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("id"), knownvalue.NotNull()),
+				},
+				PlanOnly: true,
+			},
+			{
+				// Import
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"private_key", "certificate", "status"},
+				ImportStateIdFunc:       testAccAuthenticatedOriginPullsHostnameCertificateImportStateIdFunc(resourceName),
+			},
+		},
+	})
+}
+
+func testAccCheckCloudflareAuthenticatedOriginPullsHostnameCertificateConfigNormalized(zoneID, name string) string {
+	return acctest.LoadTestCase("aophostnamecertificatenormalize.tf", zoneID, name)
+}
+>>>>>>> a5ad5285f (fix: authenticated_origin_pulls_hostname_certificate resource and tests)
