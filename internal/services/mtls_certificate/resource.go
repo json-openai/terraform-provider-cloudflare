@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/cloudflare/cloudflare-go/v6"
 	"github.com/cloudflare/cloudflare-go/v6/mtls_certificates"
@@ -92,6 +93,18 @@ func (r *MTLSCertificateResource) Create(ctx context.Context, req resource.Creat
 	}
 	data = &env.Result
 
+	// Get the original config value to preserve its format
+	var configData MTLSCertificateModel
+	req.Config.Get(ctx, &configData)
+
+	apiNormalized := strings.TrimRight(data.Certificates.ValueString(), "\n")
+	configNormalized := strings.TrimRight(configData.Certificates.ValueString(), "\n")
+
+	// If they match, use the config format
+	if apiNormalized == configNormalized {
+		data.Certificates = configData.Certificates
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -135,6 +148,17 @@ func (r *MTLSCertificateResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 	data = &env.Result
+
+	// Keep the original state format if they're semantically equal
+	var stateData MTLSCertificateModel
+	req.State.Get(ctx, &stateData)
+
+	apiNormalized := strings.TrimRight(data.Certificates.ValueString(), "\n")
+	stateNormalized := strings.TrimRight(stateData.Certificates.ValueString(), "\n")
+
+	if apiNormalized == stateNormalized {
+		data.Certificates = stateData.Certificates
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
