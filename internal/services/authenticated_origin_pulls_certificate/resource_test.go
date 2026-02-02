@@ -112,16 +112,7 @@ func testAccAuthenticatedOriginPullsCertificateImportStateIdFunc(resourceName st
 }
 
 func testAccAuthenticatedOriginPullsCertificateConfig(rnd, zoneID, cert, key string) string {
-	return fmt.Sprintf(`
-resource "cloudflare_authenticated_origin_pulls_certificate" "%[1]s" {
-  zone_id     = "%[2]s"
-  certificate = <<EOT
-%[3]s
-EOT
-  private_key = <<EOT
-%[4]s
-EOT
-}`, rnd, zoneID, cert, key)
+	return acctest.LoadTestCase("authenticatedoriginpullscertificatelifecycle.tf", rnd, zoneID, cert, key)
 }
 
 // TestAccAuthenticatedOriginPullsCertificate_FullLifecycle tests the full lifecycle

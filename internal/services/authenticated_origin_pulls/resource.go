@@ -65,14 +65,17 @@ func (r *AuthenticatedOriginPullsResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	// Extract the target hostname from config before making the API call
-	// The config has no_refresh tag so we need to preserve it
-	var targetHostname string
-	if data.Config != nil && len(*data.Config) > 0 {
-		targetHostname = (*data.Config)[0].Hostname.ValueString()
+	// Validate config has exactly one item - this resource manages a single hostname association
+	if data.Config == nil || len(*data.Config) != 1 {
+		resp.Diagnostics.AddError(
+			"invalid config",
+			"config must contain exactly one hostname association. Create separate resources to manage multiple hostnames.",
+		)
+		return
 	}
+	targetHostname := (*data.Config)[0].Hostname.ValueString()
 	if targetHostname == "" {
-		resp.Diagnostics.AddError("missing hostname", "config must contain at least one item with a hostname")
+		resp.Diagnostics.AddError("missing hostname", "config[0].hostname must not be empty")
 		return
 	}
 
@@ -156,13 +159,17 @@ func (r *AuthenticatedOriginPullsResource) Update(ctx context.Context, req resou
 		return
 	}
 
-	// Extract the target hostname from config
-	var targetHostname string
-	if data.Config != nil && len(*data.Config) > 0 {
-		targetHostname = (*data.Config)[0].Hostname.ValueString()
+	// Validate config has exactly one item - this resource manages a single hostname association
+	if data.Config == nil || len(*data.Config) != 1 {
+		resp.Diagnostics.AddError(
+			"invalid config",
+			"config must contain exactly one hostname association. Create separate resources to manage multiple hostnames.",
+		)
+		return
 	}
+	targetHostname := (*data.Config)[0].Hostname.ValueString()
 	if targetHostname == "" {
-		resp.Diagnostics.AddError("missing hostname", "config must contain at least one item with a hostname")
+		resp.Diagnostics.AddError("missing hostname", "config[0].hostname must not be empty")
 		return
 	}
 

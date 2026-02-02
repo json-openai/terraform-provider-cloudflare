@@ -171,7 +171,7 @@ func TestAccAuthenticatedOriginPulls_FullLifecycle(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"config", "created_at", "status"},
+				ImportStateVerifyIgnore: []string{"config", "created_at", "updated_at", "status"},
 				ImportStateIdFunc:       testAccAuthenticatedOriginPullsImportStateIdFunc(resourceName),
 			},
 		},
