@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/cloudflare/cloudflare-go/v6"
 	"github.com/cloudflare/cloudflare-go/v6/option"
@@ -92,6 +93,17 @@ func (r *AuthenticatedOriginPullsHostnameCertificateResource) Create(ctx context
 	}
 	data = &env.Result
 
+	// Get the original config value to preserve its format
+	var configData AuthenticatedOriginPullsHostnameCertificateModel
+	req.Config.Get(ctx, &configData)
+
+	apiNormalized := strings.TrimRight(data.Certificate.ValueString(), "\n")
+	configNormalized := strings.TrimRight(configData.Certificate.ValueString(), "\n")
+
+	// If they match, use the config format
+	if apiNormalized == configNormalized {
+		data.Certificate = configData.Certificate
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -135,6 +147,17 @@ func (r *AuthenticatedOriginPullsHostnameCertificateResource) Read(ctx context.C
 		return
 	}
 	data = &env.Result
+
+	// Keep the original state format if they're semantically equal
+	var stateData AuthenticatedOriginPullsHostnameCertificateModel
+	req.State.Get(ctx, &stateData)
+
+	apiNormalized := strings.TrimRight(data.Certificate.ValueString(), "\n")
+	stateNormalized := strings.TrimRight(stateData.Certificate.ValueString(), "\n")
+
+	if apiNormalized == stateNormalized {
+		data.Certificate = stateData.Certificate
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
