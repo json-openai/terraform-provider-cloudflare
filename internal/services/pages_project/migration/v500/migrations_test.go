@@ -1,7 +1,8 @@
-package pages_project_test
+package v500_test
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"testing"
@@ -14,9 +15,33 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/acctest"
-	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/pages_project"
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/pages_project/migration/v500"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/utils"
 )
+
+//go:embed testdata/v4_minimal.tf
+var v4MinimalTF string
+
+//go:embed testdata/v4_build_config.tf
+var v4BuildConfigTF string
+
+//go:embed testdata/v4_build_config_complete.tf
+var v4BuildConfigCompleteTF string
+
+//go:embed testdata/v4_deployment_configs.tf
+var v4DeploymentConfigsTF string
+
+//go:embed testdata/v4_compatibility_flags.tf
+var v4CompatibilityFlagsTF string
+
+//go:embed testdata/v4_full.tf
+var v4FullTF string
+
+//go:embed testdata/v4_always_use_latest.tf
+var v4AlwaysUseLatestTF string
+
+//go:embed testdata/v4_service_bindings.tf
+var v4ServiceBindingsTF string
 
 // TestMigratePagesProject_V4ToV5_Minimal tests basic migration with minimal config
 func TestMigratePagesProject_V4ToV5_Minimal(t *testing.T) {
@@ -26,13 +51,7 @@ func TestMigratePagesProject_V4ToV5_Minimal(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-minimal-%s", rnd)
 
-	// V4 config with only required fields
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4MinimalTF, rnd, accountID, projectName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -74,19 +93,7 @@ func TestMigratePagesProject_V4ToV5_WithBuildConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-build-%s", rnd)
 
-	// V4 config with build_config block
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-
-  build_config {
-    build_command   = "npm run build"
-    destination_dir = "public"
-    root_dir        = "/"
-  }
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4BuildConfigTF, rnd, accountID, projectName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -196,29 +203,7 @@ func TestMigratePagesProject_V4ToV5_WithDeploymentConfigsBasic(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-deploy-%s", rnd)
 
-	// V4 config with deployment_configs and nested placement
-	// Note: Including preview config to match API behavior (API creates both preview and production)
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-
-  deployment_configs {
-    preview {
-      compatibility_date = "2024-01-01"
-      placement {
-        mode = "smart"
-      }
-    }
-    production {
-      compatibility_date = "2024-01-01"
-      placement {
-        mode = "smart"
-      }
-    }
-  }
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4DeploymentConfigsTF, rnd, accountID, projectName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -457,31 +442,7 @@ func TestMigratePagesProject_V4ToV5_FullResource(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-full-%s", rnd)
 
-	// V4 config with multiple features (build_config and deployment_configs)
-	// Note: Removed source block because it requires valid GitHub repository
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-
-  build_config {
-    build_command   = "npm run build"
-    destination_dir = "dist"
-  }
-
-  deployment_configs {
-    preview {
-      compatibility_date = "2024-01-01"
-    }
-    production {
-      compatibility_date = "2024-01-01"
-      placement {
-        mode = "smart"
-      }
-    }
-  }
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4FullTF, rnd, accountID, projectName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -536,20 +497,7 @@ func TestMigratePagesProject_V4ToV5_WithBuildConfigComplete(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-build-complete-%s", rnd)
 
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-
-  build_config {
-    build_caching       = true
-    build_command       = "npm run build"
-    destination_dir     = "dist"
-    root_dir            = "/frontend"
-    web_analytics_tag   = "my-tag"
-  }
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4BuildConfigCompleteTF, rnd, accountID, projectName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -651,21 +599,7 @@ func TestMigratePagesProject_V4ToV5_WithCompatibilityFlags(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-compat-%s", rnd)
 
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-
-  deployment_configs {
-    preview {
-      compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
-    }
-    production {
-      compatibility_flags = ["nodejs_compat", "streams_enable_constructors", "transformstream_enable_standard_constructor"]
-    }
-  }
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4CompatibilityFlagsTF, rnd, accountID, projectName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -901,41 +835,7 @@ func TestMigratePagesProject_V4ToV5_WithMultipleServiceBindings(t *testing.T) {
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-services-%s", rnd)
 
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-
-  build_config {
-    build_caching   = false
-    build_command   = ""
-    destination_dir = ""
-    root_dir        = ""
-  }
-
-  deployment_configs {
-    preview {
-      compatibility_date = "2026-01-14"
-    }
-    production {
-      service_binding {
-        name        = "MY_SERVICE_1"
-        service     = "worker-1"
-        environment = "production"
-      }
-      service_binding {
-        name        = "MY_SERVICE_2"
-        service     = "worker-2"
-      }
-      service_binding {
-        name        = "MY_SERVICE_3"
-        service     = "worker-3"
-        environment = "staging"
-      }
-    }
-  }
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4ServiceBindingsTF, rnd, accountID, projectName)
 
 	migrationStep := acctest.MigrationV2TestStep(t, v4Config, tmpDir, "4.52.1", "v4", "v5", []statecheck.StateCheck{
 		statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("deployment_configs").AtMapKey("production").AtMapKey("services").AtMapKey("MY_SERVICE_1").AtMapKey("service"), knownvalue.StringExact("worker-1")),
@@ -975,21 +875,7 @@ func TestMigratePagesProject_V4ToV5_WithAlwaysUseLatestCompatibilityDate(t *test
 	tmpDir := t.TempDir()
 	projectName := fmt.Sprintf("tf-test-latest-compat-%s", rnd)
 
-	v4Config := fmt.Sprintf(`
-resource "cloudflare_pages_project" "%[1]s" {
-  account_id        = "%[2]s"
-  name              = "%[3]s"
-  production_branch = "main"
-
-  deployment_configs {
-    preview {
-      always_use_latest_compatibility_date = true
-    }
-    production {
-      always_use_latest_compatibility_date = false
-    }
-  }
-}`, rnd, accountID, projectName)
+	v4Config := fmt.Sprintf(v4AlwaysUseLatestTF, rnd, accountID, projectName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -1021,7 +907,7 @@ resource "cloudflare_pages_project" "%[1]s" {
 // =============================================================================
 
 func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
-	// Test mergeEnvVarsAndSecretsPreview
+	// Test MergeEnvVarsAndSecretsPreview
 	t.Run("merge_env_vars_and_secrets_preview", func(t *testing.T) {
 		ctx := context.Background()
 
@@ -1035,7 +921,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 			"DB_PASSWORD": types.StringValue("dbpass456"),
 		})
 
-		result := pages_project.MergeEnvVarsAndSecretsPreviewExported(ctx, envVars, secrets)
+		result := v500.MergeEnvVarsAndSecretsPreview(ctx, envVars, secrets)
 		if result == nil {
 			t.Fatal("expected non-nil result")
 		}
@@ -1062,7 +948,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 		}
 	})
 
-	// Test convertKVNamespacesV0ToV5Preview
+	// Test ConvertKVNamespacesV0ToV5Preview
 	t.Run("convert_kv_namespaces_preview", func(t *testing.T) {
 		ctx := context.Background()
 
@@ -1071,7 +957,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 			"ANOTHER_KV": types.StringValue("kv-namespace-id-456"),
 		})
 
-		result := pages_project.ConvertKVNamespacesV0ToV5PreviewExported(ctx, kvNamespaces)
+		result := v500.ConvertKVNamespacesV0ToV5Preview(ctx, kvNamespaces)
 		if result == nil {
 			t.Fatal("expected non-nil result")
 		}
@@ -1085,7 +971,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 		}
 	})
 
-	// Test convertD1DatabasesV0ToV5Preview
+	// Test ConvertD1DatabasesV0ToV5Preview
 	t.Run("convert_d1_databases_preview", func(t *testing.T) {
 		ctx := context.Background()
 
@@ -1093,7 +979,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 			"MY_DB": types.StringValue("d1-database-id-123"),
 		})
 
-		result := pages_project.ConvertD1DatabasesV0ToV5PreviewExported(ctx, d1Databases)
+		result := v500.ConvertD1DatabasesV0ToV5Preview(ctx, d1Databases)
 		if result == nil {
 			t.Fatal("expected non-nil result")
 		}
@@ -1107,7 +993,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 		}
 	})
 
-	// Test convertR2BucketsV0ToV5Preview
+	// Test ConvertR2BucketsV0ToV5Preview
 	t.Run("convert_r2_buckets_preview", func(t *testing.T) {
 		ctx := context.Background()
 
@@ -1115,7 +1001,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 			"MY_BUCKET": types.StringValue("my-bucket-name"),
 		})
 
-		result := pages_project.ConvertR2BucketsV0ToV5PreviewExported(ctx, r2Buckets)
+		result := v500.ConvertR2BucketsV0ToV5Preview(ctx, r2Buckets)
 		if result == nil {
 			t.Fatal("expected non-nil result")
 		}
@@ -1129,7 +1015,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 		}
 	})
 
-	// Test convertDurableObjectNamespacesV0ToV5Preview
+	// Test ConvertDurableObjectNamespacesV0ToV5Preview
 	t.Run("convert_durable_object_namespaces_preview", func(t *testing.T) {
 		ctx := context.Background()
 
@@ -1137,7 +1023,7 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 			"MY_DO": types.StringValue("do-namespace-id-123"),
 		})
 
-		result := pages_project.ConvertDurableObjectNamespacesV0ToV5PreviewExported(ctx, doNamespaces)
+		result := v500.ConvertDurableObjectNamespacesV0ToV5Preview(ctx, doNamespaces)
 		if result == nil {
 			t.Fatal("expected non-nil result")
 		}
@@ -1156,19 +1042,19 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 		ctx := context.Background()
 		nullMap := types.MapNull(types.StringType)
 
-		if result := pages_project.ConvertKVNamespacesV0ToV5PreviewExported(ctx, nullMap); result != nil {
+		if result := v500.ConvertKVNamespacesV0ToV5Preview(ctx, nullMap); result != nil {
 			t.Error("expected nil for null map")
 		}
 
-		if result := pages_project.ConvertD1DatabasesV0ToV5PreviewExported(ctx, nullMap); result != nil {
+		if result := v500.ConvertD1DatabasesV0ToV5Preview(ctx, nullMap); result != nil {
 			t.Error("expected nil for null map")
 		}
 
-		if result := pages_project.ConvertR2BucketsV0ToV5PreviewExported(ctx, nullMap); result != nil {
+		if result := v500.ConvertR2BucketsV0ToV5Preview(ctx, nullMap); result != nil {
 			t.Error("expected nil for null map")
 		}
 
-		if result := pages_project.ConvertDurableObjectNamespacesV0ToV5PreviewExported(ctx, nullMap); result != nil {
+		if result := v500.ConvertDurableObjectNamespacesV0ToV5Preview(ctx, nullMap); result != nil {
 			t.Error("expected nil for null map")
 		}
 	})
@@ -1178,11 +1064,11 @@ func TestUpgradeStateFromV0_BasicConversions(t *testing.T) {
 		ctx := context.Background()
 		emptyMap, _ := types.MapValue(types.StringType, map[string]attr.Value{})
 
-		if result := pages_project.ConvertKVNamespacesV0ToV5PreviewExported(ctx, emptyMap); result != nil {
+		if result := v500.ConvertKVNamespacesV0ToV5Preview(ctx, emptyMap); result != nil {
 			t.Error("expected nil for empty map")
 		}
 
-		if result := pages_project.MergeEnvVarsAndSecretsPreviewExported(ctx, emptyMap, emptyMap); result != nil {
+		if result := v500.MergeEnvVarsAndSecretsPreview(ctx, emptyMap, emptyMap); result != nil {
 			t.Error("expected nil when both env vars and secrets are empty")
 		}
 	})
