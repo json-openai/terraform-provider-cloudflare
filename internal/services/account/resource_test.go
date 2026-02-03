@@ -267,6 +267,16 @@ func TestAccCloudflareAccount_WithUnit(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 			},
+			// Changing unit.id should force replacement (destroy before create)
+			{
+				Config: testAccCheckCloudflareAccountWithUnit(rnd, rnd, "invalid-unit-id"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(resourceName, plancheck.ResourceActionDestroyBeforeCreate),
+					},
+				},
+				ExpectError: regexp.MustCompile(`failed to make http request|403|not found|invalid`),
+			},
 		},
 	})
 }
