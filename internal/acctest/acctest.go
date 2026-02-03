@@ -926,46 +926,12 @@ func RunMigrationV2Command(t *testing.T, v4Config string, tmpDir string, sourceV
 		t.Fatalf("tf-migrate binary not found at %s. Please set TF_MIGRATE_BINARY_PATH or ensure the binary is built.", migratorPath)
 	}
 
-	// Find state file in tmpDir
-	// First check if state file exists directly in tmpDir (from v4 import)
-	var stateFilePath string
-	directStateFile := filepath.Join(tmpDir, "terraform.tfstate")
-	if _, err := os.Stat(directStateFile); err == nil {
-		stateFilePath = directStateFile
-	} else {
-		// Look for state file in subdirectories (from test framework)
-		entries, err := os.ReadDir(tmpDir)
-		if err != nil {
-			t.Logf("Failed to read test directory: %v", err)
-		} else {
-			for _, entry := range entries {
-				if entry.IsDir() {
-					inner_entries, _ := os.ReadDir(filepath.Join(tmpDir, entry.Name()))
-					for _, inner_entry := range inner_entries {
-						if inner_entry.Name() == "terraform.tfstate" {
-							stateFilePath = filepath.Join(tmpDir, entry.Name(), "terraform.tfstate")
-							break
-						}
-					}
-				}
-				if stateFilePath != "" {
-					break
-				}
-			}
-		}
-	}
-
 	// Build the command
 	args := []string{
 		"migrate",
 		"--config-dir", tmpDir,
 		"--source-version", sourceVersion,
 		"--target-version", targetVersion,
-	}
-
-	// Add state file argument if found
-	if stateFilePath != "" {
-		args = append(args, "--state-file", stateFilePath)
 	}
 
 	// Add debug logging if TF_LOG is set
@@ -1325,6 +1291,3 @@ func MigrationV2TestStepAllowCreate(t *testing.T, v4Config string, tmpDir string
 		},
 	}
 }
-
-// ImportResourceWithV4Provider imports a resource using the v4 provider before migration testing.
-// This is used for import-only resources that cannot be created via Terraform.

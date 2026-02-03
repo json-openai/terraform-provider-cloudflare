@@ -5,17 +5,28 @@ package pages_project
 import (
 	"context"
 
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/pages_project/migration/v500"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
 var _ resource.ResourceWithUpgradeState = (*PagesProjectResource)(nil)
 
+// UpgradeState returns state upgraders for handling schema version migrations.
+// Version 0: v4 provider schema (pre-5.x) - blocks stored as lists (SDKv2 style)
+// Version 1/500: v5 provider schema - single nested attributes
 func (r *PagesProjectResource) UpgradeState(ctx context.Context) map[int64]resource.StateUpgrader {
+	sourceSchema := v500.SourcePagesProjectSchemaV0(ctx)
+	targetSchema := ResourceSchema(ctx)
 	return map[int64]resource.StateUpgrader{
+		// Handle upgrades from v4 provider (schema_version=0)
 		0: {
-			StateUpgrader: func(ctx context.Context, req resource.UpgradeStateRequest, resp *resource.UpgradeStateResponse) {
-				resp.State.Raw = req.State.Raw
-			},
+			PriorSchema:   sourceSchema,
+			StateUpgrader: v500.UpgradeFromV0,
+		},
+		// Handle upgrades within v5 series (schema_version=1+) - no-op
+		1: {
+			PriorSchema:   &targetSchema,
+			StateUpgrader: v500.UpgradeNoOp,
 		},
 	}
 }
