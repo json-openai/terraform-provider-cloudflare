@@ -34,6 +34,7 @@ import (
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/api_token_permission_groups"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/argo_smart_routing"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/argo_tiered_caching"
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/authenticated_origin_pulls"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/authenticated_origin_pulls_settings"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/bot_management"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/botnet_feed_config_asn"
@@ -459,6 +460,7 @@ func (p *CloudflareProvider) Resources(ctx context.Context) []func() resource.Re
 		logpush_job.NewResource,
 		logpush_ownership_challenge.NewResource,
 		logpull_retention.NewResource,
+		authenticated_origin_pulls.NewResource,
 		authenticated_origin_pulls_settings.NewResource,
 		page_rule.NewResource,
 		rate_limit.NewResource,
@@ -710,6 +712,7 @@ func (p *CloudflareProvider) DataSources(ctx context.Context) []func() datasourc
 		logpush_job.NewLogpushJobDataSource,
 		logpush_job.NewLogpushJobsDataSource,
 		logpull_retention.NewLogpullRetentionDataSource,
+		authenticated_origin_pulls.NewAuthenticatedOriginPullsDataSource,
 		authenticated_origin_pulls_settings.NewAuthenticatedOriginPullsSettingsDataSource,
 		page_rule.NewPageRuleDataSource,
 		rate_limit.NewRateLimitDataSource,
