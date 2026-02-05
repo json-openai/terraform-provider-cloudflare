@@ -3,7 +3,6 @@ package account_test
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"testing"
 
@@ -248,16 +247,7 @@ func TestAccCloudflareAccount_WithUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get organization IDs: %v", err)
 	}
-
-	// Try to get unit ID from environment variable first
-	unitID := os.Getenv("CLOUDFLARE_UNIT_ID")
-	if unitID == "" {
-		unitID = os.Getenv("CLOUDFLARE_PARENT_ORG_ID")
-	}
-	// If still not set and we have orgs, use the first one
-	if unitID == "" && len(orgIDs) > 0 {
-		unitID = orgIDs[0]
-	}
+	unitID := orgIDs[0]
 
 	// For alternate: use second org if exists, otherwise "invalid-unit-id"
 	alternateUnitID := "invalid-unit-id"
