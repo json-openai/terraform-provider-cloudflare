@@ -47,7 +47,7 @@ func TestMigrateCertificatePack_V4ToV5_Basic(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest", // Tests legacy v4 → current v5
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, domain string) string {
 				return fmt.Sprintf(v4BasicConfig, rnd, zoneID, domain, domain)
 			},
@@ -140,7 +140,7 @@ func TestMigrateCertificatePack_V4ToV5_WaitForActiveStatus(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest", // Tests legacy v4 → current v5
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, domain string) string {
 				return fmt.Sprintf(v4WithWaitForActiveStatusConfig, rnd, zoneID, domain, domain)
 			},
@@ -214,7 +214,7 @@ func TestMigrateCertificatePack_V4ToV5_DifferentValidation(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest", // Tests legacy v4 → current v5
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, domain string) string {
 				return fmt.Sprintf(v4GoogleHTTPConfig, rnd, zoneID, domain)
 			},

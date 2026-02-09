@@ -219,6 +219,14 @@ func TestAccPreCheck_InternalZoneID(t *testing.T) {
 	}
 }
 
+// GetLastV4Version returns LAST_V4_VERSION from environment or default "4.52.5"
+func GetLastV4Version() string {
+	if v := os.Getenv("LAST_V4_VERSION"); v != "" {
+		return v
+	}
+	return "4.52.5"
+}
+
 // TestAccSkipForDefaultZone is used for skipping over tests that are not run by
 // default on usual acceptance test suite account.
 func TestAccSkipForDefaultZone(t *testing.T, reason string) {

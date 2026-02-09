@@ -61,7 +61,8 @@ func TestMigrateCustomHostnameFallbackOriginBasic(t *testing.T) {
 		return fmt.Sprintf(config, rnd, zoneID, originHostname)
 	}
 
-	legacyProviderVersion := os.Getenv("LAST_V4_VERSION")
+	legacyProviderVersion := acctest.GetLastV4Version()
+	sourceVer, targetVer := acctest.InferMigrationVersions(legacyProviderVersion)
 
 	// Cleanup: Wait for resource to fully delete from Cloudflare API
 	// This is a singleton resource, and the API needs time to complete deletion
@@ -89,7 +90,7 @@ func TestMigrateCustomHostnameFallbackOriginBasic(t *testing.T) {
 				Config: configFn(v4BasicConfig),
 			},
 			// Run migration from v4 to v5
-			acctest.MigrationV2TestStep(t, configFn(v4BasicConfig), tmpDir, legacyProviderVersion, "v4", "v5", []statecheck.StateCheck{
+			acctest.MigrationV2TestStep(t, configFn(v4BasicConfig), tmpDir, legacyProviderVersion, sourceVer, targetVer, []statecheck.StateCheck{
 				// Verify user-configured fields are preserved exactly
 				statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("id"), knownvalue.NotNull()),
 				statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("zone_id"), knownvalue.StringExact(zoneID)),
