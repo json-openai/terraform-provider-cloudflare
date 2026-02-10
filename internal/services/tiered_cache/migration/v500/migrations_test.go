@@ -52,7 +52,7 @@ func TestMigrateTieredCache_Smart(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest",
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID string) string {
 				return fmt.Sprintf(v4SmartConfig, rnd, zoneID)
 			},
@@ -133,7 +133,7 @@ func TestMigrateTieredCache_Generic(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest",
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID string) string {
 				return fmt.Sprintf(v4GenericConfig, rnd, zoneID)
 			},
@@ -201,7 +201,7 @@ func TestMigrateTieredCache_Off(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest",
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID string) string {
 				return fmt.Sprintf(v4OffConfig, rnd, zoneID)
 			},

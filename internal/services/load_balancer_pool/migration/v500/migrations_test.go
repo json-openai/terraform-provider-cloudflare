@@ -49,7 +49,7 @@ func TestMigrateLoadBalancerPool_V4ToV5_Basic(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest", // Tests legacy v4 → current v5
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, accountID, name string) string {
 				return fmt.Sprintf(v4BasicConfig, rnd, accountID, name)
 			},
@@ -138,7 +138,7 @@ func TestMigrateLoadBalancerPool_V4ToV5_FullConfig(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest",
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, accountID, name, domain string) string {
 				return fmt.Sprintf(v4FullConfig, rnd, accountID, name, domain, domain)
 			},
@@ -277,7 +277,7 @@ func TestMigrateLoadBalancerPool_V4ToV5_CheckRegions(t *testing.T) {
 	}{
 		{
 			name:    "from_v4_latest",
-			version: os.Getenv("LAST_V4_VERSION"),
+			version: acctest.GetLastV4Version(),
 			configFn: func(rnd, accountID, name string) string {
 				return fmt.Sprintf(v4CheckRegionsConfig, rnd, accountID, name)
 			},

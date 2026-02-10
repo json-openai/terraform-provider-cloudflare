@@ -108,7 +108,7 @@ var v5Issue6076BasicConfig string
 var v5Issue6076UpdatedConfig string
 
 // TestMigrateDNSRecordBasicA tests migration of a simple A record from v4 to v5
-// Version constant os.Getenv("LAST_V4_VERSION") is defined in internal/version.go
+// Version constant acctest.GetLastV4Version() is defined in internal/version.go
 func TestMigrateDNSRecordBasicA(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -117,7 +117,7 @@ func TestMigrateDNSRecordBasicA(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4ARecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -181,7 +181,7 @@ func TestMigrateDNSRecordCAARecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4CAARecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -246,7 +246,7 @@ func TestMigrateDNSRecordMXRecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4MXRecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -304,7 +304,7 @@ func TestMigrateDNSRecordSRVRecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4SRVRecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -365,7 +365,7 @@ func TestMigrateDNSRecordTXTRecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4TXTRecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -424,7 +424,7 @@ func TestMigrateDNSRecordCNAMERecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4CNAMERecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -482,6 +482,8 @@ func TestMigrateDNSRecordWithAllowOverwrite(t *testing.T) {
 	name := fmt.Sprintf("tf-test-overwrite-%s", rnd)
 	tmpDir := t.TempDir()
 	domain := os.Getenv("CLOUDFLARE_DOMAIN")
+	version := acctest.GetLastV4Version()
+	sourceVer, targetVer := acctest.InferMigrationVersions(version)
 
 	// V4 config with allow_overwrite (should be removed in v5)
 	v4Config := fmt.Sprintf(v4AllowOverwriteConfig, rnd, zoneID, name)
@@ -497,12 +499,12 @@ func TestMigrateDNSRecordWithAllowOverwrite(t *testing.T) {
 				ExternalProviders: map[string]resource.ExternalProvider{
 					"cloudflare": {
 						Source:            "cloudflare/cloudflare",
-						VersionConstraint: os.Getenv("LAST_V4_VERSION"),
+						VersionConstraint: version,
 					},
 				},
 				Config: v4Config,
 			},
-			acctest.MigrationV2TestStep(t, v4Config, tmpDir, os.Getenv("LAST_V4_VERSION"), "v4", "v5", []statecheck.StateCheck{
+			acctest.MigrationV2TestStep(t, v4Config, tmpDir, version, sourceVer, targetVer, []statecheck.StateCheck{
 				statecheck.ExpectKnownValue("cloudflare_dns_record."+rnd, tfjsonpath.New("zone_id"), knownvalue.StringExact(zoneID)),
 				statecheck.ExpectKnownValue("cloudflare_dns_record."+rnd, tfjsonpath.New("name"), knownvalue.StringExact(fmt.Sprintf("%s.%s", name, domain))),
 				statecheck.ExpectKnownValue("cloudflare_dns_record."+rnd, tfjsonpath.New("type"), knownvalue.StringExact("A")),
@@ -518,6 +520,8 @@ func TestMigrateDNSRecordMultipleRecords(t *testing.T) {
 	zoneID := os.Getenv("CLOUDFLARE_ZONE_ID")
 	rnd := utils.GenerateRandomResourceName()
 	tmpDir := t.TempDir()
+	version := acctest.GetLastV4Version()
+	sourceVer, targetVer := acctest.InferMigrationVersions(version)
 
 	v4Config := fmt.Sprintf(v4MultipleConfig, rnd, zoneID)
 
@@ -533,13 +537,13 @@ func TestMigrateDNSRecordMultipleRecords(t *testing.T) {
 				ExternalProviders: map[string]resource.ExternalProvider{
 					"cloudflare": {
 						Source:            "cloudflare/cloudflare",
-						VersionConstraint: os.Getenv("LAST_V4_VERSION"),
+						VersionConstraint: version,
 					},
 				},
 				Config: v4Config,
 			},
 			// Step 2: Run migration and verify state for all records
-			acctest.MigrationV2TestStep(t, v4Config, tmpDir, os.Getenv("LAST_V4_VERSION"), "v4", "v5", []statecheck.StateCheck{
+			acctest.MigrationV2TestStep(t, v4Config, tmpDir, version, sourceVer, targetVer, []statecheck.StateCheck{
 				// A record checks
 				statecheck.ExpectKnownValue("cloudflare_dns_record."+rnd+"_a", tfjsonpath.New("content"), knownvalue.StringExact("52.152.96.252")),
 				statecheck.ExpectKnownValue("cloudflare_dns_record."+rnd+"_a", tfjsonpath.New("tags"), knownvalue.ListSizeExact(2)),
@@ -569,7 +573,7 @@ func TestMigrateDNSRecordAAAARecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4AAAARecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -626,7 +630,7 @@ func TestMigrateDNSRecordNSRecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4NSRecordConfig, rnd, zoneID, name) },
 		},
 		{
@@ -683,7 +687,7 @@ func TestMigrateDNSRecordWithTags(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4TagsConfig, rnd, zoneID, name) },
 		},
 		{
@@ -744,7 +748,7 @@ func TestMigrateDNSRecordPTRRecord(t *testing.T) {
 	}{
 		{
 			name:     "from_v4_latest",
-			version:  os.Getenv("LAST_V4_VERSION"),
+			version:  acctest.GetLastV4Version(),
 			configFn: func(rnd, zoneID, name string) string { return fmt.Sprintf(v4PTRRecordConfig, rnd, zoneID, name) },
 		},
 		{
