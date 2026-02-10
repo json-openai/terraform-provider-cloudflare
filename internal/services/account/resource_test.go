@@ -3,6 +3,7 @@ package account_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"testing"
 
@@ -243,7 +244,7 @@ func TestAccCloudflareAccount_WithUnit(t *testing.T) {
 	resourceName := fmt.Sprintf("cloudflare_account.%s", rnd)
 
 	// Get organization IDs to determine unit_id and alternate_unit_id
-	orgIDs, err := getOrganizationIDs()
+	orgIDs, err := getOrganizationIDs(t)
 	if err != nil {
 		t.Fatalf("Failed to get organization IDs: %v", err)
 	}
@@ -361,7 +362,11 @@ func testAccCheckCloudflareAccountWithUnit(rnd, name, unitID string) string {
 }
 
 // getOrganizationIDs fetches all organizations and returns their IDs
-func getOrganizationIDs() ([]string, error) {
+func getOrganizationIDs(t *testing.T) ([]string, error) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("Acceptance tests skipped unless env 'TF_ACC' set")
+	}
+
 	client := acctest.SharedClient()
 	orgsResp, err := client.Organizations.List(context.Background(), organizations.OrganizationListParams{})
 	if err != nil {
