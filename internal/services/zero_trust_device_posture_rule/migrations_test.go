@@ -36,7 +36,7 @@ resource "cloudflare_device_posture_rule" "%[1]s" {
   type        = "os_version"
   description = "Device posture rule for corporate devices."
   schedule    = "24h"
-  expiration  = "24h"
+  expiration  = "25h"
 
   match {
     platform = "linux"
@@ -75,7 +75,7 @@ resource "cloudflare_device_posture_rule" "%[1]s" {
 				statecheck.ExpectKnownValue("cloudflare_zero_trust_device_posture_rule."+rnd, tfjsonpath.New("type"), knownvalue.StringExact("os_version")),
 				statecheck.ExpectKnownValue("cloudflare_zero_trust_device_posture_rule."+rnd, tfjsonpath.New("description"), knownvalue.StringExact("Device posture rule for corporate devices.")),
 				statecheck.ExpectKnownValue("cloudflare_zero_trust_device_posture_rule."+rnd, tfjsonpath.New("schedule"), knownvalue.StringExact("24h")),
-				statecheck.ExpectKnownValue("cloudflare_zero_trust_device_posture_rule."+rnd, tfjsonpath.New("expiration"), knownvalue.StringExact("24h")),
+				statecheck.ExpectKnownValue("cloudflare_zero_trust_device_posture_rule."+rnd, tfjsonpath.New("expiration"), knownvalue.StringExact("25h")),
 
 				// Match should be converted to array
 				statecheck.ExpectKnownValue("cloudflare_zero_trust_device_posture_rule."+rnd, tfjsonpath.New("match").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact("linux")),
