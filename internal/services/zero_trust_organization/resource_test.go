@@ -233,10 +233,9 @@ func TestAccUpgradeZeroTrustOrganization_FromPublishedV5(t *testing.T) {
 			{
 				ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
 				Config:                   config,
-				ExpectNonEmptyPlan:       true,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PostApplyPostRefresh: []plancheck.PlanCheck{
-						plancheck.ExpectNonEmptyPlan(),
+						plancheck.ExpectEmptyPlan(),
 					},
 				},
 			},
