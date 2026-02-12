@@ -288,3 +288,243 @@ resource "cloudflare_device_settings_policy" "%[1]s" {
 		}, migrationSteps...),
 	})
 }
+
+// TestMigrateZeroTrustDeviceDefaultProfile_WithSplitTunnelExclude tests split tunnel merge (exclude mode)
+// Tests: cloudflare_split_tunnel (no policy_id, mode=exclude) merged into default profile's exclude array
+func TestMigrateZeroTrustDeviceDefaultProfile_WithSplitTunnelExclude(t *testing.T) {
+	// Zero Trust resources require API_KEY + EMAIL, not API_TOKEN
+	originalToken := os.Getenv("CLOUDFLARE_API_TOKEN")
+	if originalToken != "" {
+		os.Unsetenv("CLOUDFLARE_API_TOKEN")
+		defer os.Setenv("CLOUDFLARE_API_TOKEN", originalToken)
+	}
+
+	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+	rnd := utils.GenerateRandomResourceName()
+	tmpDir := t.TempDir()
+
+	// v4 config with default profile + split tunnel (no policy_id = applies to default)
+	// Use same minimal config as TestMigrateZeroTrustDeviceDefaultProfile_Basic
+	v4Config := fmt.Sprintf(`
+resource "cloudflare_zero_trust_device_profiles" "%[1]s" {
+  account_id  = "%[2]s"
+  name        = "Test Profile"
+  description = "Test device profile for migration"
+  default     = true
+
+  allow_mode_switch    = true
+  auto_connect         = 0
+  captive_portal       = 180
+  service_mode_v2_mode = "proxy"
+  service_mode_v2_port = 8080
+}
+
+resource "cloudflare_split_tunnel" "%[1]s_exclude" {
+  account_id = "%[2]s"
+  mode       = "exclude"
+
+  tunnels {
+    address     = "192.168.1.0/24"
+    description = "Local network"
+  }
+
+  tunnels {
+    host        = "internal.local"
+    description = "Internal domain"
+  }
+}`, rnd, accountID)
+
+	stateChecks := []statecheck.StateCheck{
+		// Verify default profile exists
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("id"), knownvalue.NotNull()),
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("account_id"), knownvalue.StringExact(accountID)),
+
+		// Verify split tunnel was merged into exclude array (SetNestedAttribute so order may vary)
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("exclude"), knownvalue.SetSizeExact(2)),
+
+		// Note: Can't check exact position due to Set semantics, but verify fields are present
+		// The migration should have merged the tunnels into the exclude array
+	}
+
+	migrationSteps := acctest.MigrationV2TestStepWithStateNormalization(t, v4Config, tmpDir, "4.52.1", "v4", "v5", stateChecks)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.TestAccPreCheck(t)
+			acctest.TestAccPreCheck_AccountID(t)
+		},
+		WorkingDir: tmpDir,
+		Steps: append([]resource.TestStep{
+			{
+				// Step 1: Create with v4 provider
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"cloudflare": {
+						Source:            "cloudflare/cloudflare",
+						VersionConstraint: "4.52.1",
+					},
+				},
+				Config: v4Config,
+			},
+		}, migrationSteps...),
+	})
+}
+
+// TestMigrateZeroTrustDeviceDefaultProfile_WithSplitTunnelInclude tests split tunnel merge (include mode)
+// Tests: cloudflare_split_tunnel (no policy_id, mode=include) merged into default profile's include array
+func TestMigrateZeroTrustDeviceDefaultProfile_WithSplitTunnelInclude(t *testing.T) {
+	// Zero Trust resources require API_KEY + EMAIL, not API_TOKEN
+	originalToken := os.Getenv("CLOUDFLARE_API_TOKEN")
+	if originalToken != "" {
+		os.Unsetenv("CLOUDFLARE_API_TOKEN")
+		defer os.Setenv("CLOUDFLARE_API_TOKEN", originalToken)
+	}
+
+	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+	rnd := utils.GenerateRandomResourceName()
+	tmpDir := t.TempDir()
+
+	// v4 config with default profile + split tunnel include mode
+	// Use same minimal config as TestMigrateZeroTrustDeviceDefaultProfile_Basic
+	v4Config := fmt.Sprintf(`
+resource "cloudflare_zero_trust_device_profiles" "%[1]s" {
+  account_id  = "%[2]s"
+  name        = "Test Profile"
+  description = "Test device profile for migration"
+  default     = true
+
+  allow_mode_switch    = true
+  auto_connect         = 0
+  captive_portal       = 180
+  service_mode_v2_mode = "proxy"
+  service_mode_v2_port = 8080
+}
+
+resource "cloudflare_split_tunnel" "%[1]s_include" {
+  account_id = "%[2]s"
+  mode       = "include"
+
+  tunnels {
+    address     = "203.0.113.0/24"
+    description = "Corporate VPN"
+  }
+}`, rnd, accountID)
+
+	stateChecks := []statecheck.StateCheck{
+		// Verify default profile exists
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("id"), knownvalue.NotNull()),
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("account_id"), knownvalue.StringExact(accountID)),
+
+		// Verify split tunnel was merged into include array
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("include"), knownvalue.SetSizeExact(1)),
+	}
+
+	migrationSteps := acctest.MigrationV2TestStepWithStateNormalization(t, v4Config, tmpDir, "4.52.1", "v4", "v5", stateChecks)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.TestAccPreCheck(t)
+			acctest.TestAccPreCheck_AccountID(t)
+		},
+		WorkingDir: tmpDir,
+		Steps: append([]resource.TestStep{
+			{
+				// Step 1: Create with v4 provider
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"cloudflare": {
+						Source:            "cloudflare/cloudflare",
+						VersionConstraint: "4.52.1",
+					},
+				},
+				Config: v4Config,
+			},
+		}, migrationSteps...),
+	})
+}
+
+// TestMigrateZeroTrustDeviceDefaultProfile_WithMultipleSplitTunnels tests multiple split tunnels merge
+// Tests: Multiple cloudflare_split_tunnel resources (both include and exclude) merged into default profile
+func TestMigrateZeroTrustDeviceDefaultProfile_WithMultipleSplitTunnels(t *testing.T) {
+	// Zero Trust resources require API_KEY + EMAIL, not API_TOKEN
+	originalToken := os.Getenv("CLOUDFLARE_API_TOKEN")
+	if originalToken != "" {
+		os.Unsetenv("CLOUDFLARE_API_TOKEN")
+		defer os.Setenv("CLOUDFLARE_API_TOKEN", originalToken)
+	}
+
+	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+	rnd := utils.GenerateRandomResourceName()
+	tmpDir := t.TempDir()
+
+	// v4 config with default profile + multiple split tunnels (both modes)
+	// Use same minimal config as TestMigrateZeroTrustDeviceDefaultProfile_Basic
+	v4Config := fmt.Sprintf(`
+resource "cloudflare_zero_trust_device_profiles" "%[1]s" {
+  account_id  = "%[2]s"
+  name        = "Test Profile"
+  description = "Test device profile for migration"
+  default     = true
+
+  allow_mode_switch    = true
+  auto_connect         = 0
+  captive_portal       = 180
+  service_mode_v2_mode = "proxy"
+  service_mode_v2_port = 8080
+}
+
+resource "cloudflare_split_tunnel" "%[1]s_exclude" {
+  account_id = "%[2]s"
+  mode       = "exclude"
+
+  tunnels {
+    address     = "192.168.0.0/16"
+    description = "Private network"
+  }
+
+  tunnels {
+    host        = "internal.local"
+    description = "Internal domain"
+  }
+}
+
+resource "cloudflare_split_tunnel" "%[1]s_include" {
+  account_id = "%[2]s"
+  mode       = "include"
+
+  tunnels {
+    address     = "203.0.113.0/24"
+    description = "Corporate VPN"
+  }
+}`, rnd, accountID)
+
+	stateChecks := []statecheck.StateCheck{
+		// Verify default profile exists
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("id"), knownvalue.NotNull()),
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("account_id"), knownvalue.StringExact(accountID)),
+
+		// Verify both exclude and include arrays are populated
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("exclude"), knownvalue.SetSizeExact(2)),
+		statecheck.ExpectKnownValue("cloudflare_zero_trust_device_default_profile."+rnd, tfjsonpath.New("include"), knownvalue.SetSizeExact(1)),
+	}
+
+	migrationSteps := acctest.MigrationV2TestStepWithStateNormalization(t, v4Config, tmpDir, "4.52.1", "v4", "v5", stateChecks)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.TestAccPreCheck(t)
+			acctest.TestAccPreCheck_AccountID(t)
+		},
+		WorkingDir: tmpDir,
+		Steps: append([]resource.TestStep{
+			{
+				// Step 1: Create with v4 provider
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"cloudflare": {
+						Source:            "cloudflare/cloudflare",
+						VersionConstraint: "4.52.1",
+					},
+				},
+				Config: v4Config,
+			},
+		}, migrationSteps...),
+	})
+}

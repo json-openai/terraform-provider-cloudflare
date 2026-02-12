@@ -17,9 +17,6 @@ type ZeroTrustDeviceDefaultProfileModel struct {
 	AccountID                  types.String                                                                    `tfsdk:"account_id" path:"account_id,required"`
 	LANAllowMinutes            types.Float64                                                                   `tfsdk:"lan_allow_minutes" json:"lan_allow_minutes,optional,no_refresh"`
 	LANAllowSubnetSize         types.Float64                                                                   `tfsdk:"lan_allow_subnet_size" json:"lan_allow_subnet_size,optional,no_refresh"`
-	Exclude                    customfield.NestedObjectList[ZeroTrustDeviceDefaultProfileExcludeModel]        `tfsdk:"exclude" json:"exclude,computed_optional"`
-	Include                    customfield.NestedObjectList[ZeroTrustDeviceDefaultProfileIncludeModel]        `tfsdk:"include" json:"include,computed_optional"`
-	ServiceModeV2              *ZeroTrustDeviceDefaultProfileServiceModeV2Model                                `tfsdk:"service_mode_v2" json:"service_mode_v2,optional"`
 	AllowModeSwitch            types.Bool                                                                      `tfsdk:"allow_mode_switch" json:"allow_mode_switch,computed_optional"`
 	AllowUpdates               types.Bool                                                                      `tfsdk:"allow_updates" json:"allow_updates,computed_optional"`
 	AllowedToLeave             types.Bool                                                                      `tfsdk:"allowed_to_leave" json:"allowed_to_leave,computed_optional"`
@@ -32,6 +29,9 @@ type ZeroTrustDeviceDefaultProfileModel struct {
 	SupportURL                 types.String                                                                    `tfsdk:"support_url" json:"support_url,computed_optional"`
 	SwitchLocked               types.Bool                                                                      `tfsdk:"switch_locked" json:"switch_locked,computed_optional"`
 	TunnelProtocol             types.String                                                                    `tfsdk:"tunnel_protocol" json:"tunnel_protocol,computed_optional"`
+	Exclude                    customfield.NestedObjectList[ZeroTrustDeviceDefaultProfileExcludeModel]         `tfsdk:"exclude" json:"exclude,computed_optional"`
+	Include                    customfield.NestedObjectList[ZeroTrustDeviceDefaultProfileIncludeModel]         `tfsdk:"include" json:"include,computed_optional"`
+	ServiceModeV2              customfield.NestedObject[ZeroTrustDeviceDefaultProfileServiceModeV2Model]       `tfsdk:"service_mode_v2" json:"service_mode_v2,optional"`
 	Default                    types.Bool                                                                      `tfsdk:"default" json:"default,computed"`
 	Enabled                    types.Bool                                                                      `tfsdk:"enabled" json:"enabled,computed"`
 	GatewayUniqueID            types.String                                                                    `tfsdk:"gateway_unique_id" json:"gateway_unique_id,computed"`

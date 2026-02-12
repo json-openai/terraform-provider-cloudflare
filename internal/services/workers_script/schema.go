@@ -288,6 +288,20 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 							Description: "Name of the Queue to bind to.",
 							Optional:    true,
 						},
+						"simple": schema.SingleNestedAttribute{
+							Description: "A simple rate limit.",
+							Optional:    true,
+							Attributes: map[string]schema.Attribute{
+								"limit": schema.Float64Attribute{
+									Description: "The rate limit value.",
+									Required:    true,
+								},
+								"period": schema.Int64Attribute{
+									Description: "The rate limit period in seconds.",
+									Required:    true,
+								},
+							},
+						},
 						"bucket_name": schema.StringAttribute{
 							Description: "R2 bucket to bind to.",
 							Optional:    true,
@@ -631,6 +645,26 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 				Computed:    true,
 				CustomType:  timetypes.RFC3339Type{},
 			},
+			"placement_mode": schema.StringAttribute{
+				Description:        `Available values: "smart", "targeted".`,
+				Computed:           true,
+				DeprecationMessage: "This attribute is deprecated.",
+				Validators: []validator.String{
+					stringvalidator.OneOfCaseInsensitive("smart", "targeted"),
+				},
+			},
+			"placement_status": schema.StringAttribute{
+				Description:        `Available values: "SUCCESS", "UNSUPPORTED_APPLICATION", "INSUFFICIENT_INVOCATIONS".`,
+				Computed:           true,
+				DeprecationMessage: "This attribute is deprecated.",
+				Validators: []validator.String{
+					stringvalidator.OneOfCaseInsensitive(
+						"SUCCESS",
+						"UNSUPPORTED_APPLICATION",
+						"INSUFFICIENT_INVOCATIONS",
+					),
+				},
+			},
 			"startup_time_ms": schema.Int64Attribute{
 				Computed: true,
 			},
@@ -673,16 +707,16 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 				},
 			},
 			"placement": schema.SingleNestedAttribute{
-				Description: "Configuration for [Smart Placement](https://developers.cloudflare.com/workers/configuration/smart-placement). Specify either mode for Smart Placement, or one of region/hostname/host for targeted placement.",
+				Description: "Configuration for [Smart Placement](https://developers.cloudflare.com/workers/configuration/smart-placement). Specify mode='smart' for Smart Placement, or one of region/hostname/host.",
 				Computed:    true,
 				Optional:    true,
 				CustomType:  customfield.NewNestedObjectType[WorkersScriptMetadataPlacementModel](ctx),
 				Attributes: map[string]schema.Attribute{
 					"mode": schema.StringAttribute{
-						Description: "Enables [Smart Placement](https://developers.cloudflare.com/workers/configuration/smart-placement).\nAvailable values: \"smart\".",
+						Description: "Enables [Smart Placement](https://developers.cloudflare.com/workers/configuration/smart-placement).\nAvailable values: \"smart\", \"targeted\".",
 						Optional:    true,
 						Validators: []validator.String{
-							stringvalidator.OneOfCaseInsensitive("smart"),
+							stringvalidator.OneOfCaseInsensitive("smart", "targeted"),
 						},
 					},
 					"last_analyzed_at": schema.StringAttribute{
@@ -712,6 +746,27 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 					"host": schema.StringAttribute{
 						Description: "TCP host and port for targeted placement.",
 						Computed:    true,
+					},
+					"target": schema.ListNestedAttribute{
+						Description: "Array of placement targets (currently limited to single target).",
+						Computed:    true,
+						CustomType:  customfield.NewNestedObjectListType[WorkersScriptPlacementTargetModel](ctx),
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"region": schema.StringAttribute{
+									Description: "Cloud region in format 'provider:region'.",
+									Computed:    true,
+								},
+								"hostname": schema.StringAttribute{
+									Description: "HTTP hostname for targeted placement.",
+									Computed:    true,
+								},
+								"host": schema.StringAttribute{
+									Description: "TCP host:port for targeted placement.",
+									Computed:    true,
+								},
+							},
+						},
 					},
 				},
 			},

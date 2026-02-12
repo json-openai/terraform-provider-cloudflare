@@ -18,15 +18,21 @@ var _ resource.ResourceWithConfigValidators = (*AuthenticatedOriginPullsResource
 
 func ResourceSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
+		Version: 1,
 		Attributes: map[string]schema.Attribute{
-			"zone_id": schema.StringAttribute{
-				Description:   "Identifier.",
-				Required:      true,
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+			"id": schema.StringAttribute{
+				Description:   "The hostname on the origin for which the client certificate uploaded will be used.",
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"hostname": schema.StringAttribute{
 				Description:   "The hostname on the origin for which the client certificate uploaded will be used.",
-				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"zone_id": schema.StringAttribute{
+				Description:   "Identifier.",
+				Required:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"config": schema.ListNestedAttribute{
@@ -94,10 +100,6 @@ func ResourceSchema(ctx context.Context) schema.Schema {
 				Description: "The date when the certificate expires.",
 				Computed:    true,
 				CustomType:  timetypes.RFC3339Type{},
-			},
-			"id": schema.StringAttribute{
-				Description: "Identifier.",
-				Computed:    true,
 			},
 			"issuer": schema.StringAttribute{
 				Description: "The certificate authority that issued the certificate.",

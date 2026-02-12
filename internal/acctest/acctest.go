@@ -161,10 +161,19 @@ func TestAccPreCheck_Pages(t *testing.T) {
 	}
 }
 
-// Test helper method checking `CLOUDFLARE_BYO_IP_PREFIX_ID` is present.
+// Test helper method checking all required environment variables for BYOIP
+// acceptance tests are present.
 func TestAccPreCheck_BYOIPPrefix(t *testing.T) {
-	if v := os.Getenv("CLOUDFLARE_BYO_IP_PREFIX_ID"); v == "" {
-		t.Skip("Skipping acceptance test as CLOUDFLARE_BYO_IP_PREFIX_ID is not set")
+	requiredKeys := []string{
+		"CLOUDFLARE_BYO_IP_CIDR",
+		"CLOUDFLARE_BYO_IP_ASN",
+		"CLOUDFLARE_BYO_IP_LOA_DOCUMENT_ID",
+	}
+
+	for _, k := range requiredKeys {
+		if os.Getenv(k) == "" {
+			t.Skipf("%s must be set for this acceptance test", k)
+		}
 	}
 }
 
@@ -208,6 +217,14 @@ func TestAccPreCheck_InternalZoneID(t *testing.T) {
 	if v := os.Getenv("CLOUDFLARE_INTERNAL_ZONE_ID"); v == "" {
 		t.Skip("Skipping acceptance test as CLOUDFLARE_INTERNAL_ZONE_ID is not set")
 	}
+}
+
+// GetLastV4Version returns LAST_V4_VERSION from environment or default "4.52.5"
+func GetLastV4Version() string {
+	if v := os.Getenv("LAST_V4_VERSION"); v != "" {
+		return v
+	}
+	return "4.52.5"
 }
 
 // TestAccSkipForDefaultZone is used for skipping over tests that are not run by
@@ -917,35 +934,12 @@ func RunMigrationV2Command(t *testing.T, v4Config string, tmpDir string, sourceV
 		t.Fatalf("tf-migrate binary not found at %s. Please set TF_MIGRATE_BINARY_PATH or ensure the binary is built.", migratorPath)
 	}
 
-	// Find state file in tmpDir
-	entries, err := os.ReadDir(tmpDir)
-	var stateDir string
-	if err != nil {
-		t.Logf("Failed to read test directory: %v", err)
-	} else {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				inner_entries, _ := os.ReadDir(filepath.Join(tmpDir, entry.Name()))
-				for _, inner_entry := range inner_entries {
-					if inner_entry.Name() == "terraform.tfstate" {
-						stateDir = filepath.Join(tmpDir, entry.Name())
-					}
-				}
-			}
-		}
-	}
-
 	// Build the command
 	args := []string{
 		"migrate",
 		"--config-dir", tmpDir,
 		"--source-version", sourceVersion,
 		"--target-version", targetVersion,
-	}
-
-	// Add state file argument if found
-	if stateDir != "" {
-		args = append(args, "--state-file", filepath.Join(stateDir, "terraform.tfstate"))
 	}
 
 	// Add debug logging if TF_LOG is set
@@ -988,27 +982,37 @@ func RunMigrationCommand(t *testing.T, v4Config string, tmpDir string) {
 	debugLogf(t, "Using YAML transformations from: %s", transformerDir)
 
 	// Find state file in tmpDir
-	entries, err := os.ReadDir(tmpDir)
-	var stateDir string
-	if err != nil {
-		t.Logf("Failed to read test directory: %v", err)
+	// First check if state file exists directly in tmpDir (from v4 import)
+	var stateFilePath string
+	directStateFile := filepath.Join(tmpDir, "terraform.tfstate")
+	if _, err := os.Stat(directStateFile); err == nil {
+		stateFilePath = directStateFile
 	} else {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				inner_entries, _ := os.ReadDir(filepath.Join(tmpDir, entry.Name()))
-				for _, inner_entry := range inner_entries {
-					if inner_entry.Name() == "terraform.tfstate" {
-						stateDir = filepath.Join(tmpDir, entry.Name())
+		// Look for state file in subdirectories (from test framework)
+		entries, err := os.ReadDir(tmpDir)
+		if err != nil {
+			t.Logf("Failed to read test directory: %v", err)
+		} else {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					inner_entries, _ := os.ReadDir(filepath.Join(tmpDir, entry.Name()))
+					for _, inner_entry := range inner_entries {
+						if inner_entry.Name() == "terraform.tfstate" {
+							stateFilePath = filepath.Join(tmpDir, entry.Name(), "terraform.tfstate")
+							break
+						}
 					}
 				}
+				if stateFilePath != "" {
+					break
+				}
 			}
-
 		}
 	}
 
 	// Run the migration command on tmpDir (for config) and terraform.tfstate (for state)
-	debugLogf(t, "StateDir: %s", stateDir)
-	state, err := os.ReadFile(filepath.Join(stateDir, "terraform.tfstate"))
+	debugLogf(t, "State file path: %s", stateFilePath)
+	state, err := os.ReadFile(stateFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read state file: %v", err)
 	}
@@ -1020,7 +1024,7 @@ func RunMigrationCommand(t *testing.T, v4Config string, tmpDir string) {
 	debugLogf(t, "Running migration with YAML transformations")
 	cmd = exec.Command("go", "run", "-C", migratePath, ".",
 		"-config", tmpDir,
-		"-state", filepath.Join(stateDir, "terraform.tfstate"),
+		"-state", stateFilePath,
 		"-grit=false",                      // Disable Grit transformations
 		"-transformer=true",                // Enable YAML transformations
 		"-transformer-dir", transformerDir) // Use local YAML configs
@@ -1033,7 +1037,7 @@ func RunMigrationCommand(t *testing.T, v4Config string, tmpDir string) {
 	if err != nil {
 		t.Fatalf("Migration command failed: %v\nMigration output:\n%s", err, string(output))
 	}
-	newState, err := os.ReadFile(filepath.Join(stateDir, "terraform.tfstate"))
+	newState, err := os.ReadFile(stateFilePath)
 	if err != nil {
 		t.Fatalf("Failed to read state file: %v", err)
 	}
@@ -1097,6 +1101,15 @@ func MigrationV2TestStepWithPlan(t *testing.T, v4Config string, tmpDir string, e
 	}
 
 	return []resource.TestStep{migrationStep, planStep, validationStep}
+}
+
+// InferMigrationVersions determines source and target versions from test provider version.
+// Returns ("v4", "v5") for v4.x versions, ("v5", "v5") for v5.x versions.
+func InferMigrationVersions(testVersion string) (source, target string) {
+	if strings.HasPrefix(testVersion, "5.") {
+		return "v5", "v5"
+	}
+	return "v4", "v5"
 }
 
 // MigrationTestStep creates a test step that runs the migration command and validates with v5 provider

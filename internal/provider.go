@@ -22,6 +22,8 @@ import (
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/account_subscription"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/account_token"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/address_map"
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/ai_search_instance"
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/ai_search_token"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/api_shield"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/api_shield_discovery_operation"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/api_shield_operation"
@@ -34,6 +36,7 @@ import (
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/argo_tiered_caching"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/authenticated_origin_pulls"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/authenticated_origin_pulls_certificate"
+	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/authenticated_origin_pulls_hostname_certificate"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/authenticated_origin_pulls_settings"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/bot_management"
 	"github.com/cloudflare/terraform-provider-cloudflare/internal/services/botnet_feed_config_asn"
@@ -462,6 +465,7 @@ func (p *CloudflareProvider) Resources(ctx context.Context) []func() resource.Re
 		logpull_retention.NewResource,
 		authenticated_origin_pulls_certificate.NewResource,
 		authenticated_origin_pulls.NewResource,
+		authenticated_origin_pulls_hostname_certificate.NewResource,
 		authenticated_origin_pulls_settings.NewResource,
 		page_rule.NewResource,
 		rate_limit.NewResource,
@@ -605,6 +609,8 @@ func (p *CloudflareProvider) Resources(ctx context.Context) []func() resource.Re
 		leaked_credential_check_rule.NewResource,
 		content_scanning.NewResource,
 		content_scanning_expression.NewResource,
+		ai_search_instance.NewResource,
+		ai_search_token.NewResource,
 		custom_pages.NewResource,
 		schema_validation_schemas.NewResource,
 		schema_validation_settings.NewResource,
@@ -715,6 +721,8 @@ func (p *CloudflareProvider) DataSources(ctx context.Context) []func() datasourc
 		authenticated_origin_pulls_certificate.NewAuthenticatedOriginPullsCertificateDataSource,
 		authenticated_origin_pulls_certificate.NewAuthenticatedOriginPullsCertificatesDataSource,
 		authenticated_origin_pulls.NewAuthenticatedOriginPullsDataSource,
+		authenticated_origin_pulls_hostname_certificate.NewAuthenticatedOriginPullsHostnameCertificateDataSource,
+		authenticated_origin_pulls_hostname_certificate.NewAuthenticatedOriginPullsHostnameCertificatesDataSource,
 		authenticated_origin_pulls_settings.NewAuthenticatedOriginPullsSettingsDataSource,
 		page_rule.NewPageRuleDataSource,
 		rate_limit.NewRateLimitDataSource,
@@ -956,6 +964,10 @@ func (p *CloudflareProvider) DataSources(ctx context.Context) []func() datasourc
 		leaked_credential_check_rule.NewLeakedCredentialCheckRulesDataSource,
 		content_scanning.NewContentScanningDataSource,
 		content_scanning_expression.NewContentScanningExpressionsDataSource,
+		ai_search_instance.NewAISearchInstanceDataSource,
+		ai_search_instance.NewAISearchInstancesDataSource,
+		ai_search_token.NewAISearchTokenDataSource,
+		ai_search_token.NewAISearchTokensDataSource,
 		custom_pages.NewCustomPagesDataSource,
 		custom_pages.NewCustomPagesListDataSource,
 		schema_validation_schemas.NewSchemaValidationSchemasDataSource,

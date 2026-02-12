@@ -265,7 +265,7 @@ func TestAccCloudflareDevicePostureRule_Firewall(t *testing.T) {
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("type"), knownvalue.StringExact("firewall")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("description"), knownvalue.StringExact("firewall description")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("schedule"), knownvalue.StringExact("24h")),
-					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("expiration"), knownvalue.StringExact("24h")),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("expiration"), knownvalue.StringExact("25h")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("match").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact("windows")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("input").AtMapKey("enabled"), knownvalue.Bool(true)),
 				},
@@ -305,7 +305,7 @@ func TestAccCloudflareDevicePostureRule_DiskEncryption_RequireAll(t *testing.T) 
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("type"), knownvalue.StringExact("disk_encryption")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("description"), knownvalue.StringExact("My description")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("schedule"), knownvalue.StringExact("24h")),
-					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("expiration"), knownvalue.StringExact("24h")),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("expiration"), knownvalue.StringExact("25h")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("match").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact("mac")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("input").AtMapKey("require_all"), knownvalue.Bool(true)),
 				},
@@ -345,7 +345,7 @@ func TestAccCloudflareDevicePostureRule_DiskEncryption_CheckDisks(t *testing.T) 
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("type"), knownvalue.StringExact("disk_encryption")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("description"), knownvalue.StringExact("My description")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("schedule"), knownvalue.StringExact("24h")),
-					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("expiration"), knownvalue.StringExact("24h")),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("expiration"), knownvalue.StringExact("25h")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("match").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact("mac")),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("input").AtMapKey("require_all"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("input").AtMapKey("check_disks").AtSliceIndex(0), knownvalue.StringExact("C")),
@@ -753,4 +753,34 @@ func testAccCheckCloudflareDevicePostureRuleDestroy(s *terraform.State) error {
 	}
 
 	return nil
+}
+
+func TestAccUpgradeZeroTrustDevicePostureRule_FromPublishedV5(t *testing.T) {
+	rnd := utils.GenerateRandomResourceName()
+
+	config := testAccCloudflareDevicePostureRuleConfigOsVersion(rnd, accountID)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() { acctest.TestAccPreCheck(t) },
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"cloudflare": {
+						Source:            "cloudflare/cloudflare",
+						VersionConstraint: "5.16.0",
+					},
+				},
+				Config: config,
+			},
+			{
+				ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
+				Config:                   config,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+		},
+	})
 }

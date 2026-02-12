@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
@@ -127,9 +128,6 @@ func TestAccMTLSCertificate_Basic(t *testing.T) {
 					statecheck.ExpectKnownValue(name, tfjsonpath.New("issuer"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue(name, tfjsonpath.New("expires_on"), knownvalue.NotNull()),
 				},
-				// Skip refresh plan check - certificates field has normalization issues
-				// that cause RequiresReplace drift on refresh
-				ExpectNonEmptyPlan: true,
 			},
 			{
 				Config: testAccMTLSCertificateUpdatedConfig(accountID, rnd, cert2, key2),
@@ -139,7 +137,6 @@ func TestAccMTLSCertificate_Basic(t *testing.T) {
 					statecheck.ExpectKnownValue(name, tfjsonpath.New("ca"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue(name, tfjsonpath.New("id"), knownvalue.NotNull()),
 				},
-				ExpectNonEmptyPlan: true,
 			},
 		},
 	})
@@ -173,4 +170,150 @@ EOT
 EOT
   ca           = false
 }`, accountID, rnd, cert, key)
+}
+
+func TestAccCloudflareMTLSCertificate_CertificateNewlineNormalization(t *testing.T) {
+	rnd := utils.GenerateRandomResourceName()
+	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+
+	name := "cloudflare_mtls_certificate." + rnd
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.TestAccPreCheck_Credentials(t)
+			acctest.TestAccPreCheck_AccountID(t)
+		},
+		ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckCloudflareMTLSCertificateDestroy,
+		Steps: []resource.TestStep{
+			{
+				// Refresh with config trimmed
+				Config: testAccCheckCloudflareMTLSCertificateConfigNormalized(accountID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(name, tfjsonpath.New(consts.AccountIDSchemaKey), knownvalue.StringExact(accountID)),
+					statecheck.ExpectKnownValue(name, tfjsonpath.New("name"), knownvalue.StringExact(rnd)),
+				},
+			},
+			{
+				// Refresh with config trimmed - should not detect drift
+				Config: testAccCheckCloudflareMTLSCertificateConfigNormalized(accountID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(name, tfjsonpath.New(consts.AccountIDSchemaKey), knownvalue.StringExact(accountID)),
+					statecheck.ExpectKnownValue(name, tfjsonpath.New("name"), knownvalue.StringExact(rnd)),
+				},
+				PlanOnly: true,
+			},
+			{
+				// Create with trailing newlines - should not detect drift
+				Config: testAccCheckCloudflareMTLSCertificateConfigWithNewline(accountID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(name, tfjsonpath.New(consts.AccountIDSchemaKey), knownvalue.StringExact(accountID)),
+					statecheck.ExpectKnownValue(name, tfjsonpath.New("name"), knownvalue.StringExact(rnd)),
+				},
+			},
+		},
+	})
+}
+
+func TestAccCloudflareMTLSCertificate_CertificateChainNewlineNormalization(t *testing.T) {
+	rnd := utils.GenerateRandomResourceName()
+	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+
+	name := "cloudflare_mtls_certificate." + rnd
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.TestAccPreCheck_Credentials(t)
+			acctest.TestAccPreCheck_AccountID(t)
+		},
+		ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckCloudflareMTLSCertificateDestroy,
+		Steps: []resource.TestStep{
+			{
+				// Refresh with config trimmed - should not detect drift
+				Config: testAccCheckCloudflareMTLSCertificateChainConfigNormalized(accountID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(name, tfjsonpath.New(consts.AccountIDSchemaKey), knownvalue.StringExact(accountID)),
+					statecheck.ExpectKnownValue(name, tfjsonpath.New("name"), knownvalue.StringExact(rnd)),
+				},
+			},
+			{
+				// Refresh with config trimmed - should not detect drift
+				Config: testAccCheckCloudflareMTLSCertificateChainConfigNormalized(accountID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(name, tfjsonpath.New(consts.AccountIDSchemaKey), knownvalue.StringExact(accountID)),
+					statecheck.ExpectKnownValue(name, tfjsonpath.New("name"), knownvalue.StringExact(rnd)),
+				},
+				PlanOnly: true,
+			},
+			{
+				// Create with certificate chain with trailing newlines
+				Config: testAccCheckCloudflareMTLSCertificateChainConfigWithNewline(accountID, rnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(name, tfjsonpath.New(consts.AccountIDSchemaKey), knownvalue.StringExact(accountID)),
+					statecheck.ExpectKnownValue(name, tfjsonpath.New("name"), knownvalue.StringExact(rnd)),
+				},
+			},
+		},
+	})
+}
+
+func testAccCheckCloudflareMTLSCertificateConfigWithNewline(accountID, name string) string {
+	return acctest.LoadTestCase("mtlscertificateconfigwithnewline.tf", accountID, name)
+}
+
+func testAccCheckCloudflareMTLSCertificateConfigNormalized(accountID, name string) string {
+	return acctest.LoadTestCase("mtlscertificateconfignormalized.tf", accountID, name)
+}
+
+func testAccCheckCloudflareMTLSCertificateChainConfigWithNewline(accountID, name string) string {
+	return acctest.LoadTestCase("mtlscertificatechainwithnewline.tf", accountID, name)
+}
+
+func testAccCheckCloudflareMTLSCertificateChainConfigNormalized(accountID, name string) string {
+	return acctest.LoadTestCase("mtlscertificatechainnormalized.tf", accountID, name)
+}
+
+func TestAccUpgradeMtlsCertificate_FromPublishedV5(t *testing.T) {
+	rnd := utils.GenerateRandomResourceName()
+	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+	expiry := time.Now().Add(time.Hour * 24 * 365)
+	cert, key, err := utils.GenerateEphemeralCertAndKey([]string{"example.com"}, expiry)
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %s", err)
+	}
+	if err != nil {
+		t.Fatalf("Failed to generate certificate: %s", err)
+	}
+
+	config := testAccMTLSCertificateBasicConfig(accountID, rnd, cert, key)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.TestAccPreCheck_Credentials(t)
+			acctest.TestAccPreCheck_AccountID(t)
+		},
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"cloudflare": {
+						Source:            "cloudflare/cloudflare",
+						VersionConstraint: "5.16.0",
+					},
+				},
+				Config:             config,
+				ExpectNonEmptyPlan: true,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectNonEmptyPlan(),
+					},
+				},
+			},
+			{
+				ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
+				Config:                   config,
+				ExpectNonEmptyPlan:       true,
+			},
+		},
+	})
 }

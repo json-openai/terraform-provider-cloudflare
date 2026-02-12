@@ -18,7 +18,7 @@ type PagesProjectModel struct {
 	Name                 types.String                                                   `tfsdk:"name" json:"name,required"`
 	AccountID            types.String                                                   `tfsdk:"account_id" path:"account_id,required"`
 	ProductionBranch     types.String                                                   `tfsdk:"production_branch" json:"production_branch,required"`
-	BuildConfig          *PagesProjectBuildConfigModel                                  `tfsdk:"build_config" json:"build_config,optional"`
+	BuildConfig          customfield.NestedObject[PagesProjectBuildConfigModel]         `tfsdk:"build_config" json:"build_config,computed_optional"`
 	Source               *PagesProjectSourceModel                                       `tfsdk:"source" json:"source,optional"`
 	DeploymentConfigs    customfield.NestedObject[PagesProjectDeploymentConfigsModel]   `tfsdk:"deployment_configs" json:"deployment_configs,computed_optional"`
 	CreatedOn            timetypes.RFC3339                                              `tfsdk:"created_on" json:"created_on,computed" format:"date-time"`
@@ -157,7 +157,7 @@ type PagesProjectDeploymentConfigsPreviewR2BucketsModel struct {
 type PagesProjectDeploymentConfigsPreviewServicesModel struct {
 	Service     types.String `tfsdk:"service" json:"service,required"`
 	Entrypoint  types.String `tfsdk:"entrypoint" json:"entrypoint,optional"`
-	Environment types.String `tfsdk:"environment" json:"environment,optional"`
+	Environment types.String `tfsdk:"environment" json:"environment,computed_optional"`
 }
 
 type PagesProjectDeploymentConfigsPreviewVectorizeBindingsModel struct {
@@ -245,7 +245,7 @@ type PagesProjectDeploymentConfigsProductionR2BucketsModel struct {
 type PagesProjectDeploymentConfigsProductionServicesModel struct {
 	Service     types.String `tfsdk:"service" json:"service,required"`
 	Entrypoint  types.String `tfsdk:"entrypoint" json:"entrypoint,optional"`
-	Environment types.String `tfsdk:"environment" json:"environment,optional"`
+	Environment types.String `tfsdk:"environment" json:"environment,computed_optional"`
 }
 
 type PagesProjectDeploymentConfigsProductionVectorizeBindingsModel struct {

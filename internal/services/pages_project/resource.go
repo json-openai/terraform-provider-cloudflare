@@ -234,7 +234,7 @@ func (r *PagesProjectResource) Read(ctx context.Context, req resource.ReadReques
 
 	// Preserve build_config from state only if API didn't return it
 	// This handles the case where the API inconsistently returns build_config
-	if data.BuildConfig == nil && stateData.BuildConfig != nil {
+	if data.BuildConfig.IsNull() && !stateData.BuildConfig.IsNull() {
 		data.BuildConfig = stateData.BuildConfig
 	}
 
@@ -376,9 +376,9 @@ func (r *PagesProjectResource) ModifyPlan(ctx context.Context, req resource.Modi
 		plan.DeploymentConfigs = state.DeploymentConfigs
 	}
 
-	// Preserve build_config if it's null in the plan but present in state.
+	// Preserve build_config if it's null/unknown in the plan but present in state.
 	// This prevents drift when user omits build_config (issue #5928).
-	if plan.BuildConfig == nil && state.BuildConfig != nil {
+	if (plan.BuildConfig.IsUnknown() || plan.BuildConfig.IsNull()) && !state.BuildConfig.IsNull() {
 		plan.BuildConfig = state.BuildConfig
 	}
 
@@ -460,32 +460,35 @@ func NormalizeDeploymentConfigs(ctx context.Context, data *PagesProjectModel) (*
 	// This handles the case where the API returns empty strings for build_config fields,
 	// which would otherwise cause "planned value for a non-computed attribute" errors
 	// when the user doesn't specify build_config in their configuration.
-	if data.BuildConfig != nil {
-		bc := data.BuildConfig
-		allFieldsEmpty := true
-		// For bool fields, check if not null and not unknown
-		if !bc.BuildCaching.IsNull() && !bc.BuildCaching.IsUnknown() {
-			allFieldsEmpty = false
-		}
-		// For string fields, check if not null, not unknown, AND not empty string
-		// The API often returns empty strings "" which are different from null
-		if !bc.BuildCommand.IsNull() && !bc.BuildCommand.IsUnknown() && bc.BuildCommand.ValueString() != "" {
-			allFieldsEmpty = false
-		}
-		if !bc.DestinationDir.IsNull() && !bc.DestinationDir.IsUnknown() && bc.DestinationDir.ValueString() != "" {
-			allFieldsEmpty = false
-		}
-		if !bc.RootDir.IsNull() && !bc.RootDir.IsUnknown() && bc.RootDir.ValueString() != "" {
-			allFieldsEmpty = false
-		}
-		if !bc.WebAnalyticsTag.IsNull() && !bc.WebAnalyticsTag.IsUnknown() && bc.WebAnalyticsTag.ValueString() != "" {
-			allFieldsEmpty = false
-		}
-		if !bc.WebAnalyticsToken.IsNull() && !bc.WebAnalyticsToken.IsUnknown() && bc.WebAnalyticsToken.ValueString() != "" {
-			allFieldsEmpty = false
-		}
-		if allFieldsEmpty {
-			data.BuildConfig = nil
+	if !data.BuildConfig.IsNull() && !data.BuildConfig.IsUnknown() {
+		bc, bcDiags := data.BuildConfig.Value(ctx)
+		diags.Append(bcDiags...)
+		if !bcDiags.HasError() && bc != nil {
+			allFieldsEmpty := true
+			// For bool fields, check if not null and not unknown
+			if !bc.BuildCaching.IsNull() && !bc.BuildCaching.IsUnknown() {
+				allFieldsEmpty = false
+			}
+			// For string fields, check if not null, not unknown, AND not empty string
+			// The API often returns empty strings "" which are different from null
+			if !bc.BuildCommand.IsNull() && !bc.BuildCommand.IsUnknown() && bc.BuildCommand.ValueString() != "" {
+				allFieldsEmpty = false
+			}
+			if !bc.DestinationDir.IsNull() && !bc.DestinationDir.IsUnknown() && bc.DestinationDir.ValueString() != "" {
+				allFieldsEmpty = false
+			}
+			if !bc.RootDir.IsNull() && !bc.RootDir.IsUnknown() && bc.RootDir.ValueString() != "" {
+				allFieldsEmpty = false
+			}
+			if !bc.WebAnalyticsTag.IsNull() && !bc.WebAnalyticsTag.IsUnknown() && bc.WebAnalyticsTag.ValueString() != "" {
+				allFieldsEmpty = false
+			}
+			if !bc.WebAnalyticsToken.IsNull() && !bc.WebAnalyticsToken.IsUnknown() && bc.WebAnalyticsToken.ValueString() != "" {
+				allFieldsEmpty = false
+			}
+			if allFieldsEmpty {
+				data.BuildConfig = customfield.NullObject[PagesProjectBuildConfigModel](ctx)
+			}
 		}
 	}
 

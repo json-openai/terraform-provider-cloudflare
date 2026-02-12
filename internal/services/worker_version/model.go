@@ -94,7 +94,17 @@ type WorkerVersionModulesModel struct {
 }
 
 type WorkerVersionPlacementModel struct {
-	Mode types.String `tfsdk:"mode" json:"mode,optional"`
+	Mode     types.String                          `tfsdk:"mode" json:"mode,optional"`
+	Region   types.String                          `tfsdk:"region" json:"region,optional"`
+	Hostname types.String                          `tfsdk:"hostname" json:"hostname,optional"`
+	Host     types.String                          `tfsdk:"host" json:"host,optional"`
+	Target   *[]*WorkerVersionPlacementTargetModel `tfsdk:"target" json:"target,optional"`
+}
+
+type WorkerVersionPlacementTargetModel struct {
+	Region   types.String `tfsdk:"region" json:"region,optional"`
+	Hostname types.String `tfsdk:"hostname" json:"hostname,optional"`
+	Host     types.String `tfsdk:"host" json:"host,optional"`
 }
 
 type WorkerVersionAnnotationsModel struct {
@@ -135,6 +145,7 @@ type WorkerVersionBindingsModel struct {
 	Text                        types.String                        `tfsdk:"text" json:"text,optional"`
 	Pipeline                    types.String                        `tfsdk:"pipeline" json:"pipeline,optional"`
 	QueueName                   types.String                        `tfsdk:"queue_name" json:"queue_name,optional"`
+	Simple                      *WorkerVersionBindingsSimpleModel   `tfsdk:"simple" json:"simple,optional"`
 	BucketName                  types.String                        `tfsdk:"bucket_name" json:"bucket_name,optional"`
 	Jurisdiction                types.String                        `tfsdk:"jurisdiction" json:"jurisdiction,optional"`
 	AllowedDestinationAddresses *[]types.String                     `tfsdk:"allowed_destination_addresses" json:"allowed_destination_addresses,optional"`
@@ -160,6 +171,11 @@ type WorkerVersionBindingsOutboundModel struct {
 type WorkerVersionBindingsOutboundWorkerModel struct {
 	Environment types.String `tfsdk:"environment" json:"environment,optional"`
 	Service     types.String `tfsdk:"service" json:"service,optional"`
+}
+
+type WorkerVersionBindingsSimpleModel struct {
+	Limit  types.Float64 `tfsdk:"limit" json:"limit,required"`
+	Period types.Int64   `tfsdk:"period" json:"period,required"`
 }
 
 type WorkerVersionLimitsModel struct {
