@@ -1,5 +1,50 @@
 # Changelog
 
+## 5.17.0 (2026-02-12)
+
+Full Changelog: [v5.16.0...v5.17.0](https://github.com/cloudflare/terraform-provider-cloudflare/compare/v5.16.0...v5.17.0)
+
+### Features
+
+* **ai_search_instance:** add data source for querying AI search instances
+* **ai_search_token:** add data source for querying AI search tokens
+* **account:** add support for tenant unit management with new `unit` field
+* **account:** add automatic mapping from `managed_by.parent_org_id` to `unit.id`
+* **account:** deprecate `type` field in favor of computed value
+* **authenticated_origin_pulls_certificate:** add data source for querying authenticated origin pull certificates
+* **authenticated_origin_pulls_hostname_certificate:** add data source for querying hostname-specific authenticated origin pull certificates
+* **authenticated_origin_pulls_settings:** add data source for querying authenticated origin pull settings
+* **workers_kv:** add `value` field to data source to retrieve KV values directly
+* **workers_script:** add `script` field to data source to retrieve script content
+* **workers_script:** add support for `simple` rate limit binding
+* **workers_script:** add support for targeted placement mode with `placement.target` array for specifying placement targets (region, hostname, host)
+* **workers_script:** add `placement_mode` and `placement_status` computed fields
+* **zero_trust_dex_test:** add data source with filter support for finding specific tests
+* **zero_trust_dlp_predefined_profile:** add `enabled_entries` field for flexible entry management
+
+### Bug Fixes
+
+* **cloudforce_one_request_message:** use correct `request_id` field instead of `id` in API calls
+* **dns_zone_transfers_incoming:** use correct `zone_id` field instead of `id` in API calls
+* **dns_zone_transfers_outgoing:** use correct `zone_id` field instead of `id` in API calls
+* **email_routing_settings:** use correct `zone_id` field instead of `id` in API calls
+* **hyperdrive_config:** add proper handling for write-only fields to prevent state drift
+* **hyperdrive_config:** add normalization for empty `mtls` objects to prevent unnecessary diffs
+* **magic_network_monitoring_rule:** use correct `account_id` field instead of `id` in API calls
+* **stream_key:** use correct `account_id` field instead of `id` in API calls
+* **waiting_room_rules:** use correct `waiting_room_id` field instead of `id` in API calls
+* **zero_trust_dlp_integration_entry:** use correct `entry_id` field instead of `id` in API calls
+* **zero_trust_dlp_predefined_entry:** use correct `entry_id` field instead of `id` in API calls
+
+### Chores
+
+* add state upgraders to 95+ resources for smooth upgrades from v5.16.0
+* **certificate_pack:** add state migration handler for SDKv2 to Framework conversion
+* **dns_record:** add state migration handler for SDKv2 to Framework conversion
+* **load_balancer_pool:** add state migration handler with detection for v4 vs v5 format
+* **pages_project:** add state migration handler for SDKv2 to Framework conversion
+* **zero_trust_dlp_predefined_profile:** deprecate `entries` field in favor of `enabled_entries`
+
 ## 5.16.0 (2026-01-20)
 
 Full Changelog: [v5.15.0...v5.16.0](https://github.com/cloudflare/terraform-provider-cloudflare/compare/v5.15.0...v5.16.0)
