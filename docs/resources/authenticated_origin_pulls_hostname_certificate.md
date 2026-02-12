@@ -1,18 +1,18 @@
 ---
-page_title: "cloudflare_authenticated_origin_pulls_certificate Resource - Cloudflare"
+page_title: "cloudflare_authenticated_origin_pulls_hostname_certificate Resource - Cloudflare"
 subcategory: ""
 description: |-
   
 ---
 
-# cloudflare_authenticated_origin_pulls_certificate (Resource)
+# cloudflare_authenticated_origin_pulls_hostname_certificate (Resource)
 
 
 
 ## Example Usage
 
 ```terraform
-resource "cloudflare_authenticated_origin_pulls_certificate" "example_authenticated_origin_pulls_certificate" {
+resource "cloudflare_authenticated_origin_pulls_hostname_certificate" "example_authenticated_origin_pulls_hostname_certificate" {
   zone_id = "023e105f4ecef8ad9ca31a8372d0c353"
   certificate = <<EOT
   -----BEGIN CERTIFICATE-----
@@ -77,28 +77,27 @@ resource "cloudflare_authenticated_origin_pulls_certificate" "example_authentica
 
 ### Required
 
-- `certificate` (String) The zone's leaf certificate.
-- `private_key` (String, Sensitive) The zone's private key.
+- `certificate` (String) The hostname certificate.
+- `private_key` (String, Sensitive) The hostname certificate's private key.
 - `zone_id` (String) Identifier.
 
 ### Read-Only
 
-- `certificate_id` (String) Identifier.
-- `enabled` (Boolean) Indicates whether zone-level authenticated origin pulls is enabled.
-- `expires_on` (String) When the certificate from the authority expires.
+- `expires_on` (String) The date when the certificate expires.
 - `id` (String) Identifier.
 - `issuer` (String) The certificate authority that issued the certificate.
+- `serial_number` (String) The serial number on the uploaded certificate.
 - `signature` (String) The type of hash used for the certificate.
-- `status` (String) Status of the certificate activation.
+- `status` (String) Status of the certificate or the association.
 Available values: "initializing", "pending_deployment", "pending_deletion", "active", "deleted", "deployment_timed_out", "deletion_timed_out".
-- `uploaded_on` (String) This is the time the certificate was uploaded.
+- `uploaded_on` (String) The time when the certificate was uploaded.
 
 ## Import
 
 Import is supported using the following syntax:
 
 ```shell
-$ terraform import cloudflare_authenticated_origin_pulls_certificate.example '<zone_id>/<certificate_id>'
+$ terraform import cloudflare_authenticated_origin_pulls_hostname_certificate.example '<zone_id>/<certificate_id>'
 ```
 
 
